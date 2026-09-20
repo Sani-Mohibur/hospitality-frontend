@@ -249,7 +249,7 @@ export default function PlatformModulesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Platform Modules</h1>
           <p className="text-slate-500 mt-1">Configure global modules, pricing, and system features.</p>
         </div>
-        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
           <Plus className="w-4 h-4 mr-2" /> Add Module
         </Button>
       </div>
@@ -297,26 +297,26 @@ export default function PlatformModulesPage() {
         </div>
         <div className="flex w-full sm:w-auto gap-4">
           <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="DEPRECATED">Deprecated</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE" className="cursor-pointer">Active</SelectItem>
+              <SelectItem value="INACTIVE" className="cursor-pointer">Inactive</SelectItem>
+              <SelectItem value="DEPRECATED" className="cursor-pointer">Deprecated</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Categories</SelectItem>
-              <SelectItem value="Core">Core</SelectItem>
-              <SelectItem value="Add-on">Add-on</SelectItem>
-              <SelectItem value="Integration">Integration</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Categories</SelectItem>
+              <SelectItem value="Core" className="cursor-pointer">Core</SelectItem>
+              <SelectItem value="Add-on" className="cursor-pointer">Add-on</SelectItem>
+              <SelectItem value="Integration" className="cursor-pointer">Integration</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -377,7 +377,7 @@ export default function PlatformModulesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
@@ -446,13 +446,13 @@ export default function PlatformModulesPage() {
             <div className="space-y-2">
               <Label>Category</Label>
               <Select value={formData.category} onValueChange={(v) => v && setFormData({...formData, category: v})}>
-                <SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Core">Core</SelectItem>
-                  <SelectItem value="Add-on">Add-on</SelectItem>
-                  <SelectItem value="Integration">Integration</SelectItem>
+                  <SelectItem value="Core" className="cursor-pointer">Core</SelectItem>
+                  <SelectItem value="Add-on" className="cursor-pointer">Add-on</SelectItem>
+                  <SelectItem value="Integration" className="cursor-pointer">Integration</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -465,21 +465,21 @@ export default function PlatformModulesPage() {
               <div className="space-y-2">
                 <Label>Pricing Model</Label>
                 <Select value={formData.pricingModel} onValueChange={(v) => v && setFormData({...formData, pricingModel: v as ModulePricingModel})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
-                    <SelectItem value="PER_USER">Per User</SelectItem>
-                    <SelectItem value="PER_LOCATION">Per Location</SelectItem>
+                    <SelectItem value="FLAT_FEE" className="cursor-pointer">Flat Fee</SelectItem>
+                    <SelectItem value="PER_USER" className="cursor-pointer">Per User</SelectItem>
+                    <SelectItem value="PER_LOCATION" className="cursor-pointer">Per Location</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="cursor-pointer">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                 {editingId ? "Save Changes" : "Create Module"}
               </Button>
             </DialogFooter>
@@ -501,11 +501,11 @@ export default function PlatformModulesPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Back</Button>
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="cursor-pointer">Back</Button>
             <Button 
               variant={actionType === "DISABLE" ? "destructive" : "default"} 
               onClick={confirmAction}
-              className={actionType === "ENABLE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+              className={`cursor-pointer ${actionType === "ENABLE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
             >
               Confirm
             </Button>

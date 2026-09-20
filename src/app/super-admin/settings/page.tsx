@@ -110,16 +110,16 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6 bg-slate-100/80 p-1.5 rounded-xl gap-1">
-          <TabsTrigger value="profile" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="profile" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm cursor-pointer">
             <User className="w-4 h-4 mr-2" /> Profile
           </TabsTrigger>
-          <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm cursor-pointer">
             <Lock className="w-4 h-4 mr-2" /> Security
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="notifications" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm cursor-pointer">
             <Bell className="w-4 h-4 mr-2" /> Notifications
           </TabsTrigger>
-          <TabsTrigger value="system" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="system" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm cursor-pointer">
             <Settings2 className="w-4 h-4 mr-2" /> System Config
           </TabsTrigger>
         </TabsList>
@@ -149,8 +149,8 @@ export default function SettingsPage() {
                     <h3 className="font-medium text-slate-900">Profile Picture</h3>
                     <p className="text-sm text-slate-500 mb-3">JPG, GIF or PNG. Max size of 2MB.</p>
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm">Upload New</Button>
-                      <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700">Remove</Button>
+                      <Button type="button" variant="outline" size="sm" className="cursor-pointer">Upload New</Button>
+                      <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700 cursor-pointer">Remove</Button>
                     </div>
                   </div>
                 </div>
@@ -176,15 +176,15 @@ export default function SettingsPage() {
                   <div className="space-y-2 sm:col-span-2">
                     <Label>Timezone</Label>
                     <Select value={profile.timezone} onValueChange={v => v && setProfile({...profile, timezone: v})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="cursor-pointer">
                         <SelectValue placeholder="Select Timezone" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
-                        <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                        <SelectItem value="America/New_York" className="cursor-pointer">Eastern Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Chicago" className="cursor-pointer">Central Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Denver" className="cursor-pointer">Mountain Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Los_Angeles" className="cursor-pointer">Pacific Time (US & Canada)</SelectItem>
+                        <SelectItem value="Europe/London" className="cursor-pointer">London (GMT)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
               </form>
             </CardContent>
             <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-4">
-              <Button type="submit" form="profile-form" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto">
+              <Button type="submit" form="profile-form" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto cursor-pointer">
                 {isSaving ? "Saving..." : <><Save className="w-4 h-4 mr-2" /> Save Profile</>}
               </Button>
             </CardFooter>
@@ -223,7 +223,7 @@ export default function SettingsPage() {
               </form>
             </CardContent>
             <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-4">
-              <Button type="submit" form="security-form" disabled={isSaving || !security.currentPassword || !security.newPassword} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto">
+              <Button type="submit" form="security-form" disabled={isSaving || !security.currentPassword || !security.newPassword} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto cursor-pointer">
                 {isSaving ? "Updating..." : "Update Password"}
               </Button>
             </CardFooter>
@@ -245,6 +245,7 @@ export default function SettingsPage() {
                 </div>
                 <Button 
                   variant={security.twoFactorEnabled ? "outline" : "default"} 
+                  className="cursor-pointer"
                   onClick={() => {
                     setSecurity(s => ({...s, twoFactorEnabled: !s.twoFactorEnabled}));
                     toast.success(`2FA has been ${!security.twoFactorEnabled ? 'enabled' : 'disabled'}.`);
@@ -270,7 +271,7 @@ export default function SettingsPage() {
                     <p className="text-xs text-slate-500">New York, USA • 192.168.1.45</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" disabled>Active</Button>
+                <Button variant="ghost" size="sm" disabled className="cursor-pointer">Active</Button>
               </div>
               <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl">
                 <div className="flex items-center gap-4">
@@ -280,7 +281,7 @@ export default function SettingsPage() {
                     <p className="text-xs text-slate-500">New York, USA • 172.16.254.1 (Last active 2 hours ago)</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Revoke</Button>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer">Revoke</Button>
               </div>
             </CardContent>
           </Card>
@@ -302,28 +303,28 @@ export default function SettingsPage() {
                       <Label htmlFor="notif-tenants" className="font-medium cursor-pointer">New Tenant Onboarding</Label>
                       <p className="text-sm text-slate-500">Receive an email when a new tenant registers or is created.</p>
                     </div>
-                    <Checkbox id="notif-tenants" checked={notifications.newTenants} onCheckedChange={(c) => setNotifications(n => ({...n, newTenants: !!c}))} />
+                    <Checkbox id="notif-tenants" className="cursor-pointer" checked={notifications.newTenants} onCheckedChange={(c) => setNotifications(n => ({...n, newTenants: !!c}))} />
                   </div>
                   <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                     <div>
                       <Label htmlFor="notif-billing" className="font-medium cursor-pointer">Billing Alerts</Label>
                       <p className="text-sm text-slate-500">Receive alerts for overdue subscriptions and high-value payments.</p>
                     </div>
-                    <Checkbox id="notif-billing" checked={notifications.billingAlerts} onCheckedChange={(c) => setNotifications(n => ({...n, billingAlerts: !!c}))} />
+                    <Checkbox id="notif-billing" className="cursor-pointer" checked={notifications.billingAlerts} onCheckedChange={(c) => setNotifications(n => ({...n, billingAlerts: !!c}))} />
                   </div>
                   <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                     <div>
                       <Label htmlFor="notif-errors" className="font-medium cursor-pointer">Critical System Errors</Label>
                       <p className="text-sm text-slate-500">Get notified immediately if a core platform service fails.</p>
                     </div>
-                    <Checkbox id="notif-errors" checked={notifications.systemErrors} onCheckedChange={(c) => setNotifications(n => ({...n, systemErrors: !!c}))} />
+                    <Checkbox id="notif-errors" className="cursor-pointer" checked={notifications.systemErrors} onCheckedChange={(c) => setNotifications(n => ({...n, systemErrors: !!c}))} />
                   </div>
                   <div className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                     <div>
                       <Label htmlFor="notif-marketing" className="font-medium cursor-pointer">Product & Marketing Updates</Label>
                       <p className="text-sm text-slate-500">Receive newsletters regarding new features and SaaS updates.</p>
                     </div>
-                    <Checkbox id="notif-marketing" checked={notifications.marketingUpdates} onCheckedChange={(c) => setNotifications(n => ({...n, marketingUpdates: !!c}))} />
+                    <Checkbox id="notif-marketing" className="cursor-pointer" checked={notifications.marketingUpdates} onCheckedChange={(c) => setNotifications(n => ({...n, marketingUpdates: !!c}))} />
                   </div>
                 </div>
 
@@ -334,12 +335,12 @@ export default function SettingsPage() {
                       <Label htmlFor="notif-push" className="font-medium cursor-pointer">Push Notifications</Label>
                       <p className="text-sm text-slate-500">Allow real-time push alerts to appear in your browser dashboard.</p>
                     </div>
-                    <Checkbox id="notif-push" checked={notifications.pushEnabled} onCheckedChange={(c) => setNotifications(n => ({...n, pushEnabled: !!c}))} />
+                    <Checkbox id="notif-push" className="cursor-pointer" checked={notifications.pushEnabled} onCheckedChange={(c) => setNotifications(n => ({...n, pushEnabled: !!c}))} />
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-4">
-                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto">
+                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto cursor-pointer">
                   {isSaving ? "Saving..." : "Save Preferences"}
                 </Button>
               </CardFooter>
@@ -360,14 +361,14 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label>Default System Currency</Label>
                     <Select value={system.defaultCurrency} onValueChange={(v) => v && setSystem(s => ({...s, defaultCurrency: v}))}>
-                      <SelectTrigger>
+                      <SelectTrigger className="cursor-pointer">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
-                        <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
-                        <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
-                        <SelectItem value="PKR">PKR (₨) - Pakistani Rupee</SelectItem>
+                        <SelectItem value="USD" className="cursor-pointer">USD ($) - US Dollar</SelectItem>
+                        <SelectItem value="EUR" className="cursor-pointer">EUR (€) - Euro</SelectItem>
+                        <SelectItem value="GBP" className="cursor-pointer">GBP (£) - British Pound</SelectItem>
+                        <SelectItem value="PKR" className="cursor-pointer">PKR (₨) - Pakistani Rupee</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500">Base currency for global analytics.</p>
@@ -376,14 +377,14 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label>Global Session Timeout (Minutes)</Label>
                     <Select value={system.sessionTimeout} onValueChange={(v) => v && setSystem(s => ({...s, sessionTimeout: v}))}>
-                      <SelectTrigger>
+                      <SelectTrigger className="cursor-pointer">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="15">15 Minutes</SelectItem>
-                        <SelectItem value="30">30 Minutes</SelectItem>
-                        <SelectItem value="60">1 Hour</SelectItem>
-                        <SelectItem value="1440">24 Hours</SelectItem>
+                        <SelectItem value="15" className="cursor-pointer">15 Minutes</SelectItem>
+                        <SelectItem value="30" className="cursor-pointer">30 Minutes</SelectItem>
+                        <SelectItem value="60" className="cursor-pointer">1 Hour</SelectItem>
+                        <SelectItem value="1440" className="cursor-pointer">24 Hours</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500">Auto-logout time for inactivity across all tenants.</p>
@@ -409,7 +410,7 @@ export default function SettingsPage() {
                           type="button" 
                           variant={system.maintenanceMode ? "outline" : "destructive"} 
                           size="sm"
-                          className={system.maintenanceMode ? "border-rose-300 text-rose-700 bg-white hover:bg-rose-100" : ""}
+                          className={`cursor-pointer ${system.maintenanceMode ? "border-rose-300 text-rose-700 bg-white hover:bg-rose-100" : ""}`}
                           onClick={() => {
                             if (system.maintenanceMode) {
                               setSystem(s => ({...s, maintenanceMode: false}));
@@ -427,7 +428,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-4">
-                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto">
+                <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white ml-auto cursor-pointer">
                   {isSaving ? "Saving..." : "Save System Config"}
                 </Button>
               </CardFooter>
@@ -449,9 +450,10 @@ export default function SettingsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="cursor-pointer">Cancel</Button>
             <Button 
               variant="destructive" 
+              className="cursor-pointer"
               onClick={() => {
                 setSystem(s => ({...s, maintenanceMode: true}));
                 confirmMaintenanceMode();

@@ -205,7 +205,7 @@ export default function TenantsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Tenants</h1>
           <p className="text-slate-500 mt-1">Manage platform tenants, subscriptions, and modules.</p>
         </div>
-        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
           <Plus className="w-4 h-4 mr-2" /> Onboard Tenant
         </Button>
       </div>
@@ -223,14 +223,14 @@ export default function TenantsPage() {
         </div>
         <div className="w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[180px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="SUSPENDED">Suspended</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE" className="cursor-pointer">Active</SelectItem>
+              <SelectItem value="PENDING" className="cursor-pointer">Pending</SelectItem>
+              <SelectItem value="SUSPENDED" className="cursor-pointer">Suspended</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -293,7 +293,7 @@ export default function TenantsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
@@ -371,6 +371,7 @@ export default function TenantsPage() {
                   <div className="flex items-center space-x-3">
                     <Checkbox 
                       id="mod-hospitality" 
+                      className="cursor-pointer"
                       checked={formData.modules.includes("HOSPITALITY")} 
                       onCheckedChange={() => toggleModule("HOSPITALITY")} 
                     />
@@ -382,6 +383,7 @@ export default function TenantsPage() {
                   <div className="flex items-center space-x-3">
                     <Checkbox 
                       id="mod-restaurant" 
+                      className="cursor-pointer"
                       checked={formData.modules.includes("RESTAURANT")} 
                       onCheckedChange={() => toggleModule("RESTAURANT")} 
                     />
@@ -394,8 +396,8 @@ export default function TenantsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="cursor-pointer">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                 {editingId ? "Save Changes" : "Create Tenant"}
               </Button>
             </DialogFooter>
@@ -417,11 +419,11 @@ export default function TenantsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="cursor-pointer">Cancel</Button>
             <Button 
               variant={actionType === "SUSPEND" ? "destructive" : "default"} 
               onClick={confirmAction}
-              className={actionType === "ACTIVATE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+              className={`cursor-pointer ${actionType === "ACTIVATE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
             >
               Confirm
             </Button>

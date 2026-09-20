@@ -277,25 +277,25 @@ export default function SubscriptionsPage() {
         </div>
         <div className="flex w-full sm:w-auto gap-4">
           <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="OVERDUE">Overdue</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE" className="cursor-pointer">Active</SelectItem>
+              <SelectItem value="OVERDUE" className="cursor-pointer">Overdue</SelectItem>
+              <SelectItem value="CANCELLED" className="cursor-pointer">Cancelled</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={cycleFilter} onValueChange={(v) => v && setCycleFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[150px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Billing Cycle" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Cycles</SelectItem>
-              <SelectItem value="MONTHLY">Monthly</SelectItem>
-              <SelectItem value="YEARLY">Yearly</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Cycles</SelectItem>
+              <SelectItem value="MONTHLY" className="cursor-pointer">Monthly</SelectItem>
+              <SelectItem value="YEARLY" className="cursor-pointer">Yearly</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -358,7 +358,7 @@ export default function SubscriptionsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
@@ -421,12 +421,12 @@ export default function SubscriptionsPage() {
               <div className="space-y-2">
                 <Label>Billing Cycle</Label>
                 <Select value={formData.billingCycle} onValueChange={(v) => v && setFormData({...formData, billingCycle: v as BillingCycle})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MONTHLY">Monthly</SelectItem>
-                    <SelectItem value="YEARLY">Yearly</SelectItem>
+                    <SelectItem value="MONTHLY" className="cursor-pointer">Monthly</SelectItem>
+                    <SelectItem value="YEARLY" className="cursor-pointer">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -450,8 +450,8 @@ export default function SubscriptionsPage() {
             </div>
 
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">Save Changes</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} className="cursor-pointer">Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -471,11 +471,11 @@ export default function SubscriptionsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Back</Button>
+            <Button variant="outline" onClick={() => setIsConfirmOpen(false)} className="cursor-pointer">Back</Button>
             <Button 
               variant={actionType === "CANCEL" ? "destructive" : "default"} 
               onClick={confirmAction}
-              className={actionType === "REACTIVATE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+              className={`cursor-pointer ${actionType === "REACTIVATE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
             >
               Confirm
             </Button>

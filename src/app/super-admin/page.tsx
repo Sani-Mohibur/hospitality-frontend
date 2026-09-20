@@ -30,7 +30,7 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
         <div className="hidden md:block">
-          <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50 border-none">
+          <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50 border-none cursor-pointer">
             <Download className="w-4 h-4 mr-2" /> Export Report
           </Button>
         </div>
@@ -77,8 +77,8 @@ export default function SuperAdminDashboard() {
                 <CardDescription>Comprehensive revenue performance metrics</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" className="bg-blue-50 text-blue-700 hover:bg-blue-100">This Month</Button>
-                <Button variant="ghost" size="sm">This Year</Button>
+                <Button variant="secondary" size="sm" className="bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer">This Month</Button>
+                <Button variant="ghost" size="sm" className="cursor-pointer">This Year</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -125,7 +125,7 @@ export default function SuperAdminDashboard() {
                   </div>
                   <h3 className="font-semibold mb-1 text-lg">Onboard Tenant</h3>
                   <p className="text-sm text-blue-100 mb-6">Create a new business entity</p>
-                  <Button variant="secondary" className="w-full bg-white text-[#1e58d4] hover:bg-blue-50 border-none">Start Wizard</Button>
+                  <Button variant="secondary" className="w-full bg-white text-[#1e58d4] hover:bg-blue-50 border-none cursor-pointer">Start Wizard</Button>
                 </CardContent>
               </Card>
 
@@ -138,7 +138,7 @@ export default function SuperAdminDashboard() {
                   </div>
                   <h3 className="font-semibold mb-1 text-lg">Configure Pricing</h3>
                   <p className="text-sm text-purple-100 mb-6">Update platform module rates</p>
-                  <Button variant="secondary" className="w-full bg-white text-[#8b5cf6] hover:bg-purple-50 border-none">Manage Modules</Button>
+                  <Button variant="secondary" className="w-full bg-white text-[#8b5cf6] hover:bg-purple-50 border-none cursor-pointer">Manage Modules</Button>
                 </CardContent>
               </Card>
             </div>
@@ -149,7 +149,7 @@ export default function SuperAdminDashboard() {
                   <h3 className="text-lg font-semibold text-slate-800">Top Tenants</h3>
                   <p className="text-xs text-slate-500">This month's leaders</p>
                 </div>
-                <Button variant="link" size="sm" className="text-blue-600 h-auto p-0 font-medium text-sm">View All &gt;</Button>
+                <Button variant="link" size="sm" className="text-blue-600 h-auto p-0 font-medium text-sm cursor-pointer">View All &gt;</Button>
               </div>
               <Card className="shadow-sm border-slate-100 flex-1">
                 <CardContent className="p-0 h-full">
@@ -159,7 +159,7 @@ export default function SuperAdminDashboard() {
                       { initials: "BP", name: "Bistro Plus", accounts: "876 users", growth: "+18.2%", revenue: "$19.8K", color: "bg-slate-400 text-white" },
                       { initials: "CR", name: "City Resort", accounts: "654 users", growth: "+15.7%", revenue: "$16.7K", color: "bg-orange-500 text-white" }
                     ].map((tenant, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors flex-1">
+                      <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors flex-1 cursor-pointer">
                         <div className="flex items-center gap-4">
                           <div className="relative">
                             <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm ${tenant.color}`}>
@@ -215,7 +215,7 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
               ))}
-              <Button variant="link" className="w-full text-blue-600">View All Activities</Button>
+              <Button variant="link" className="w-full text-blue-600 cursor-pointer">View All Activities</Button>
             </CardContent>
           </Card>
 
@@ -236,7 +236,7 @@ export default function SuperAdminDashboard() {
                   <span className="font-medium text-orange-800">Tenant Approvals</span>
                   <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">5</span>
                 </div>
-                <Button className="w-full mt-2" variant="outline">Review Now</Button>
+                <Button className="w-full mt-2 cursor-pointer" variant="outline">Review Now</Button>
               </div>
             </CardContent>
           </Card>

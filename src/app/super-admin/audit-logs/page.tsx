@@ -205,29 +205,29 @@ export default function AuditLogsPage() {
         </div>
         <div className="flex w-full lg:w-auto gap-4">
           <Select value={actionFilter} onValueChange={(v) => v && setActionFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[160px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[160px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Action" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Actions</SelectItem>
-              <SelectItem value="CREATE">Create</SelectItem>
-              <SelectItem value="UPDATE">Update</SelectItem>
-              <SelectItem value="DELETE">Delete / Disable</SelectItem>
-              <SelectItem value="LOGIN">Login</SelectItem>
-              <SelectItem value="FAILED_LOGIN">Failed Login</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Actions</SelectItem>
+              <SelectItem value="CREATE" className="cursor-pointer">Create</SelectItem>
+              <SelectItem value="UPDATE" className="cursor-pointer">Update</SelectItem>
+              <SelectItem value="DELETE" className="cursor-pointer">Delete / Disable</SelectItem>
+              <SelectItem value="LOGIN" className="cursor-pointer">Login</SelectItem>
+              <SelectItem value="FAILED_LOGIN" className="cursor-pointer">Failed Login</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={entityFilter} onValueChange={(v) => v && setEntityFilter(v)}>
-            <SelectTrigger className="w-full sm:w-[160px] bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[160px] bg-slate-50 border-slate-200 cursor-pointer">
               <SelectValue placeholder="Entity" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Resources</SelectItem>
-              <SelectItem value="Tenant">Tenant</SelectItem>
-              <SelectItem value="Subscription">Subscription</SelectItem>
-              <SelectItem value="Platform Module">Platform Module</SelectItem>
-              <SelectItem value="User">User</SelectItem>
+              <SelectItem value="ALL" className="cursor-pointer">All Resources</SelectItem>
+              <SelectItem value="Tenant" className="cursor-pointer">Tenant</SelectItem>
+              <SelectItem value="Subscription" className="cursor-pointer">Subscription</SelectItem>
+              <SelectItem value="Platform Module" className="cursor-pointer">Platform Module</SelectItem>
+              <SelectItem value="User" className="cursor-pointer">User</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -286,7 +286,7 @@ export default function AuditLogsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
