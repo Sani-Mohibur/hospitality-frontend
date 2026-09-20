@@ -13,8 +13,8 @@ const navItems = [
   { name: "Dashboard", href: "/super-admin", icon: LayoutDashboard },
   { name: "Tenants", href: "/super-admin/tenants", icon: Users },
   { name: "Subscriptions", href: "/super-admin/subscriptions", icon: CreditCard },
-  { name: "Platform Modules", href: "/super-admin/modules", icon: Package },
-  { name: "Audit Logs", href: "/super-admin/logs", icon: FileText },
+  { name: "Platform Modules", href: "/super-admin/platform-modules", icon: Package },
+  { name: "Audit Logs", href: "/super-admin/audit-logs", icon: FileText },
   { name: "Settings", href: "/super-admin/settings", icon: Settings },
 ];
 
@@ -31,9 +31,8 @@ export function Sidebar() {
           <Link
             key={item.name}
             href={item.href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-white/10 ${
-              item.name === "Dashboard" ? "bg-white/15 font-medium" : "text-blue-100"
-            }`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-white/10 ${item.name === "Dashboard" ? "bg-white/15 font-medium" : "text-blue-100"
+              }`}
           >
             <item.icon className="w-5 h-5" />
             {item.name}
