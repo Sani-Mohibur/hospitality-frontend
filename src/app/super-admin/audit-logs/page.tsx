@@ -42,7 +42,7 @@ interface AuditLog {
   details: string;
   ipAddress: string;
   timestamp: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 const initialLogs: AuditLog[] = [

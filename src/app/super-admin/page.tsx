@@ -12,7 +12,7 @@ export default function SuperAdminDashboard() {
       <div className="bg-gradient-to-r from-[#1e58d4] to-[#3b82f6] rounded-2xl p-8 text-white flex justify-between items-center shadow-lg">
         <div>
           <h1 className="text-3xl font-bold mb-2">Welcome back, Admin</h1>
-          <p className="text-blue-100 mb-6">Here's your platform performance overview</p>
+          <p className="text-blue-100 mb-6">Here&apos;s your platform performance overview</p>
           
           <div className="flex gap-6">
             <div className="bg-white/10 rounded-xl p-4 min-w-[160px]">
@@ -147,7 +147,7 @@ export default function SuperAdminDashboard() {
               <div className="flex justify-between items-end mb-1">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800">Top Tenants</h3>
-                  <p className="text-xs text-slate-500">This month's leaders</p>
+                  <p className="text-xs text-slate-500">This month&apos;s leaders</p>
                 </div>
                 <Button variant="link" size="sm" className="text-blue-600 h-auto p-0 font-medium text-sm cursor-pointer">View All &gt;</Button>
               </div>
