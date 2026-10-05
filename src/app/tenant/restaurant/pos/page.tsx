@@ -1,8 +1,11 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Search, Utensils, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const menuCategories = ["All", "Starters", "Mains", "Desserts", "Beverages"];
 const menuItems = [
@@ -95,8 +98,8 @@ export default function POSPage() {
             <span>$28.60</span>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button variant="outline" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Cancel</Button>
-            <Button className="w-full bg-emerald-600 hover:bg-emerald-700"><Send className="w-4 h-4 mr-2" /> Fire to Kitchen</Button>
+            <Button variant="outline" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => toast.error("Order cancelled")}>Cancel</Button>
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={() => toast.success("Order fired to kitchen!")}><Send className="w-4 h-4 mr-2" /> Fire to Kitchen</Button>
           </div>
         </div>
       </Card>

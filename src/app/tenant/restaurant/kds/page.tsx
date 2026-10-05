@@ -1,7 +1,10 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 
 // Mock Data
 const kdsOrders = [
@@ -84,13 +87,13 @@ export default function KDSPage() {
             </CardContent>
             <CardFooter className="p-4 border-t bg-slate-50">
               {order.status === "NEW" && (
-                <Button className="w-full bg-amber-500 hover:bg-amber-600">Start Cooking</Button>
+                <Button className="w-full bg-amber-500 hover:bg-amber-600" onClick={() => toast.success(`Started cooking order #${order.id}`)}>Start Cooking</Button>
               )}
               {order.status === "COOKING" && (
-                <Button className="w-full bg-emerald-500 hover:bg-emerald-600"><CheckCircle className="w-4 h-4 mr-2" /> Mark Ready</Button>
+                <Button className="w-full bg-emerald-500 hover:bg-emerald-600" onClick={() => toast.success(`Order #${order.id} marked as ready`)}><CheckCircle className="w-4 h-4 mr-2" /> Mark Ready</Button>
               )}
               {order.status === "READY" && (
-                <Button variant="outline" className="w-full">Clear from KDS</Button>
+                <Button variant="outline" className="w-full" onClick={() => toast.success(`Order #${order.id} cleared from KDS`)}>Clear from KDS</Button>
               )}
             </CardFooter>
           </Card>
