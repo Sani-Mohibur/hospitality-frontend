@@ -93,7 +93,7 @@ export function SiteHeader() {
             <>
               <Link
                 id="header-login"
-                href="/home/login"
+                href="/login"
                 className={cn(
                   "px-3 py-2 text-[0.82rem] font-medium tracking-wide transition-colors",
                   overDark ? "text-ivory/85 hover:text-ivory" : "text-umber hover:text-ink",
@@ -101,7 +101,7 @@ export function SiteHeader() {
               >
                 Log in
               </Link>
-              <Link id="header-cta" href="/home/signup" className={ctaClass(overDark ? "gold" : "dark")}>
+              <Link id="header-cta" href="/signup" className={ctaClass(overDark ? "gold" : "dark")}>
                 Start free trial
                 <ArrowUpRight className="size-4" />
               </Link>
@@ -165,10 +165,10 @@ export function SiteHeader() {
                 </>
               ) : (
                 <>
-                  <Link href="/home/login" onClick={() => setOpen(false)} className={ctaClass("outline-dark")}>
+                  <Link href="/login" onClick={() => setOpen(false)} className={ctaClass("outline-dark")}>
                     Log in
                   </Link>
-                  <Link href="/home/signup" onClick={() => setOpen(false)} className={ctaClass("dark")}>
+                  <Link href="/signup" onClick={() => setOpen(false)} className={ctaClass("dark")}>
                     Start free trial
                   </Link>
                 </>

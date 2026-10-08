@@ -1,15 +1,19 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { apiFetch } from "./api";
 
-export type Role = "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
-export type Module = "HOSPITALITY" | "RESTAURANT";
+export type Role = "SUPER_ADMIN" | "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
+export type Module = "HOSPITALITY" | "RESTAURANT" | "INVENTORY" | "DISTRIBUTION" | "AI_ASSISTANT";
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
+  permissions?: string[];
+  impersonatedBy?: string;
+  tenantId?: string;
 }
 
 interface Tenant {
@@ -21,6 +25,9 @@ interface Tenant {
 interface AuthContextType {
   user: User | null;
   tenant: Tenant | null;
+  isLoading: boolean;
+  login: (token: string, userData: User) => void;
+  logout: () => Promise<void>;
   setUserRole: (role: Role) => void;
   toggleModule: (module: Module) => void;
   hasRole: (allowedRoles: Role[]) => boolean;
@@ -30,34 +37,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Mock initial state
-  const [user, setUser] = useState<User>({
-    id: "u-1",
-    name: "Tenant User",
-    email: "user@tenant.com",
-    role: "TENANT_OWNER",
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [tenant, setTenant] = useState<Tenant>({
-    id: "t-1",
-    name: "Acme Hospitality",
-    subscribedModules: ["HOSPITALITY", "RESTAURANT"],
-  });
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        try {
+          const res = await apiFetch("/user/me");
+          if (res.ok) {
+            const data = await res.json();
+            setUser(data.data as User);
+            if (data.data.tenant) {
+              setTenant(data.data.tenant);
+            }
+          } else {
+            localStorage.removeItem("accessToken");
+          }
+        } catch (error) {
+          console.error("Failed to fetch user profile", error);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initAuth();
+  }, []);
+
+  const login = (token: string, userData: User) => {
+    localStorage.setItem("accessToken", token);
+    setUser(userData);
+    // Usually, login returns the user with tenant. We can fetch /user/me or assume it's set.
+    // For simplicity, we just set the user for now. A reload or a subsequent state update will sync.
+  };
+
+  const logout = async () => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST", requireAuth: false });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      localStorage.removeItem("accessToken");
+      setUser(null);
+      setTenant(null);
+      window.location.href = "/login";
+    }
+  };
 
   const setUserRole = (role: Role) => {
-    setUser((prev) => ({ ...prev, role }));
+    if (user) setUser({ ...user, role });
   };
 
   const toggleModule = (module: Module) => {
-    setTenant((prev) => {
-      const has = prev.subscribedModules.includes(module);
-      return {
-        ...prev,
+    if (tenant) {
+      const has = tenant.subscribedModules.includes(module);
+      setTenant({
+        ...tenant,
         subscribedModules: has
-          ? prev.subscribedModules.filter((m) => m !== module)
-          : [...prev.subscribedModules, module],
-      };
-    });
+          ? tenant.subscribedModules.filter((m) => m !== module)
+          : [...tenant.subscribedModules, module],
+      });
+    }
   };
 
   const hasRole = (allowedRoles: Role[]) => {
@@ -75,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         tenant,
+        isLoading,
+        login,
+        logout,
         setUserRole,
         toggleModule,
         hasRole,

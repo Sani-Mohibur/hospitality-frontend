@@ -27,7 +27,7 @@ export function CtaBand() {
                 trial today — no credit card required to explore.
               </p>
               <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link id="cta-band-signup" href="/home/signup" className={ctaClass("gold", "lg")}>
+                <Link id="cta-band-signup" href="/signup" className={ctaClass("gold", "lg")}>
                   Start your free trial <ArrowRight className="size-4" />
                 </Link>
                 <a id="cta-band-sales" href={`mailto:${SALES_EMAIL}`} className={ctaClass("outline-light", "lg")}>

@@ -1,6 +1,6 @@
 import { TenantSidebar } from "@/components/layout/tenant-sidebar";
 import { TenantTopbar } from "@/components/layout/tenant-topbar";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthGuard } from "@/components/auth-guard";
 
 export default function TenantLayout({
   children,
@@ -8,7 +8,7 @@ export default function TenantLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthProvider>
+    <AuthGuard allowedRoles={["TENANT_OWNER", "TENANT_MANAGER", "STAFF"]}>
       <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
         <TenantSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -18,6 +18,6 @@ export default function TenantLayout({
           </main>
         </div>
       </div>
-    </AuthProvider>
+    </AuthGuard>
   );
 }

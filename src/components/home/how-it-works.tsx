@@ -41,7 +41,7 @@ export function HowItWorks() {
             }
             description="No servers to install and no lengthy contracts. Four calm steps from sign-up to your first service."
           />
-          <Link href="/home/signup" className={ctaClass("dark", "lg", "self-start lg:self-end")}>
+          <Link href="/signup" className={ctaClass("dark", "lg", "self-start lg:self-end")}>
             Create your account <ArrowRight className="size-4" />
           </Link>
         </div>
