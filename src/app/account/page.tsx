@@ -102,26 +102,27 @@ export default function AccountPage() {
                   <div>
                     <h3 className="font-semibold text-sm mb-3 text-slate-700">Module Access</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white">
-                        {tenant.subscribedModules.includes("HOSPITALITY") ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-slate-300" />
-                        )}
-                        <span className={`text-sm font-medium ${tenant.subscribedModules.includes("HOSPITALITY") ? "text-slate-900" : "text-slate-400"}`}>
-                          Hospitality / Hotel
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white">
-                        {tenant.subscribedModules.includes("RESTAURANT") ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-slate-300" />
-                        )}
-                        <span className={`text-sm font-medium ${tenant.subscribedModules.includes("RESTAURANT") ? "text-slate-900" : "text-slate-400"}`}>
-                          Restaurant / POS
-                        </span>
-                      </div>
+                      {[
+                        { code: "HOSPITALITY" as const, label: "Hospitality / Hotel" },
+                        { code: "RESTAURANT" as const, label: "Restaurant / POS" },
+                        { code: "INVENTORY" as const, label: "Recipe & Inventory" },
+                        { code: "DISTRIBUTION" as const, label: "Channel Distribution" },
+                        { code: "AI_ASSISTANT" as const, label: "AI Operations Assistant" },
+                      ].map((m) => {
+                        const hasMod = tenant.subscribedModules.includes(m.code);
+                        return (
+                          <div key={m.code} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white">
+                            {hasMod ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-slate-300 shrink-0" />
+                            )}
+                            <span className={`text-sm font-medium ${hasMod ? "text-slate-900" : "text-slate-400"}`}>
+                              {m.label}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -136,9 +137,18 @@ export default function AccountPage() {
                   )}
 
                 </CardContent>
-                <CardFooter className="pt-2 border-t border-slate-100 bg-slate-50/50 mt-auto">
+                <CardFooter className="pt-2 border-t border-slate-100 bg-slate-50/50 mt-auto flex flex-col sm:flex-row gap-2">
+                  {user.role === "TENANT_OWNER" && (
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => router.push("/tenant/settings/subscription")}
+                    >
+                      Manage Subscription
+                    </Button>
+                  )}
                   <Button 
-                    className="w-full gap-2" 
+                    className="w-full sm:flex-1 gap-2" 
                     size="lg"
                     disabled={!hasActiveAccess}
                     onClick={() => router.push("/tenant/dashboard")}

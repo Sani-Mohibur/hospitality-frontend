@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Building2, Check, Lock, Mail, User } from "lucide-react";
 import resortTerrace from "@/assets/home/resort-terrace.jpg";
 import { useAuth } from "@/lib/auth-context";
@@ -55,7 +55,7 @@ function PasswordMeter({ value }: { value: string }) {
   );
 }
 
-export default function SignupPage() {
+function SignupContent() {
   const [SignupForm, setFormData] = useState<SignupForm>({
     businessName: "",
     ownerName: "",
@@ -67,6 +67,14 @@ export default function SignupPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const pkgParam = searchParams.get("package");
+  const selectedModules = pkgParam === "hotel"
+    ? ["HOSPITALITY"]
+    : pkgParam === "restaurant"
+      ? ["RESTAURANT"]
+      : ["HOSPITALITY", "RESTAURANT"];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const key = e.target.id as keyof SignupForm;
@@ -86,7 +94,10 @@ export default function SignupPage() {
     try {
       const res = await apiFetch("/auth/signup", {
         method: "POST",
-        body: JSON.stringify(SignupForm),
+        body: JSON.stringify({
+          ...SignupForm,
+          modules: selectedModules,
+        }),
         requireAuth: false,
       });
 
@@ -94,8 +105,10 @@ export default function SignupPage() {
 
       if (res.ok) {
         // Handle successful signup
-        login(data.data.accessToken, data.data);
-        router.push("/account");
+        const user = data.data.user || data.data;
+        login(data.data.accessToken, user);
+        const redirect = searchParams.get("redirect") || "/tenant/dashboard";
+        router.push(redirect);
       } else {
         setError(data.message || "Failed to sign up. Please try again.");
       }
@@ -226,5 +239,13 @@ export default function SignupPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupContent />
+    </Suspense>
   );
 }

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowUpRight, LogOut, Menu, X } from "lucide-react";
+import { ArrowUpRight, LogOut, Menu, X, LayoutDashboard, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo, ctaClass } from "@/components/home/primitives";
-import { signOut, useMarketingSession } from "@/lib/marketing/session";
+import { useAuth } from "@/lib/auth-context";
 
 const NAV = [
   { label: "Hotel", href: "/home#hotel" },
@@ -26,7 +26,7 @@ function subscribeScroll(cb: () => void) {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const session = useMarketingSession();
+  const { user, tenant, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const scrolled = useSyncExternalStore(
     subscribeScroll,
@@ -35,6 +35,18 @@ export function SiteHeader() {
   );
 
   const overDark = DARK_HERO_ROUTES.includes(pathname) && !scrolled && !open;
+
+  const dashboardHref = user?.role === "SUPER_ADMIN"
+    ? "/super-admin"
+    : user?.tenantId || tenant
+      ? "/tenant/dashboard"
+      : "/account";
+
+  const dashboardLabel = user?.role === "SUPER_ADMIN"
+    ? "Admin Panel"
+    : user?.tenantId || tenant
+      ? "Dashboard"
+      : "My Account";
 
   return (
     <header
@@ -66,15 +78,15 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          {session ? (
+          {user ? (
             <>
               <span className={cn("text-[0.82rem]", overDark ? "text-ivory/70" : "text-stone")}>
-                Signed in as <span className={overDark ? "text-ivory" : "text-ink"}>{session.name}</span>
+                Signed in as <span className={overDark ? "text-ivory font-medium" : "text-ink font-medium"}>{user.name}</span>
               </span>
               <button
                 id="header-sign-out"
                 type="button"
-                onClick={signOut}
+                onClick={() => logout()}
                 className={cn(
                   "inline-flex size-9 cursor-pointer items-center justify-center rounded-full border transition-colors",
                   overDark
@@ -85,8 +97,9 @@ export function SiteHeader() {
               >
                 <LogOut className="size-4" />
               </button>
-              <Link id="header-cta" href="/home/pricing" className={ctaClass(overDark ? "gold" : "dark")}>
-                Choose a plan
+              <Link id="header-cta" href={dashboardHref} className={ctaClass(overDark ? "gold" : "dark")}>
+                {user.role === "SUPER_ADMIN" ? <Shield className="mr-1.5 size-4" /> : <LayoutDashboard className="mr-1.5 size-4" />}
+                {dashboardLabel}
               </Link>
             </>
           ) : (
@@ -147,20 +160,20 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-6 grid grid-cols-2 gap-3">
-              {session ? (
+              {user ? (
                 <>
                   <button
                     type="button"
                     onClick={() => {
-                      signOut();
+                      logout();
                       setOpen(false);
                     }}
                     className={ctaClass("outline-dark", "md", "cursor-pointer")}
                   >
                     Sign out
                   </button>
-                  <Link href="/home/pricing" onClick={() => setOpen(false)} className={ctaClass("dark")}>
-                    Choose a plan
+                  <Link href={dashboardHref} onClick={() => setOpen(false)} className={ctaClass("dark")}>
+                    {dashboardLabel}
                   </Link>
                 </>
               ) : (

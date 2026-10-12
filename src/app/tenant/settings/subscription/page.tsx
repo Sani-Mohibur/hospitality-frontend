@@ -12,7 +12,10 @@ interface TenantSubscription {
   _id: string;
   status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED";
   billingCycle: "MONTHLY" | "YEARLY";
-  priceMinor: number;
+  monthlyMinor?: number;
+  cycleAmountMinor?: number;
+  priceMinor?: number;
+  planName?: string;
   features?: string[];
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
@@ -28,7 +31,8 @@ interface TenantSubscription {
 interface PlatformInvoice {
   _id: string;
   number?: string;
-  amountMinor: number;
+  totalMinor?: number;
+  amountMinor?: number;
   status: "PAID" | "OPEN" | "VOID";
   dueDate?: string;
   issuedAt?: string;
@@ -40,6 +44,9 @@ export default function SubscriptionPage() {
   const [invoices, setInvoices] = useState<PlatformInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingCycle, setIsUpdatingCycle] = useState(false);
+  const [isTogglingCancel, setIsTogglingCancel] = useState(false);
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSubscriptionData = useCallback(async () => {
@@ -79,6 +86,42 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleToggleCancel = async () => {
+    if (!subscription) return;
+    const willCancel = !subscription.cancelAtPeriodEnd;
+    setIsTogglingCancel(true);
+    setNotice(null);
+    try {
+      await apiClient.post("/subscription/my-subscription/cancel", {
+        cancel: willCancel,
+      });
+      fetchSubscriptionData();
+      setNotice(willCancel ? "Subscription set to end at current period end." : "Cancellation withdrawn.");
+    } catch (err: any) {
+      alert(err?.message || "Failed to update cancellation status");
+    } finally {
+      setIsTogglingCancel(false);
+    }
+  };
+
+  const handlePayInvoice = async (invoiceId: string) => {
+    setPayingInvoiceId(invoiceId);
+    setNotice(null);
+    try {
+      const res = await apiClient.post<{ clientSecret?: string }>(`/subscription/my-invoices/${invoiceId}/pay`);
+      if (res.data?.clientSecret) {
+        setNotice("Payment intent ready. Settle with card.");
+      } else {
+        setNotice("Payment initiated successfully.");
+      }
+      fetchSubscriptionData();
+    } catch (err: any) {
+      setNotice(err?.message || "Payment gateway keys are being configured by platform administrator. Access remains active.");
+    } finally {
+      setPayingInvoiceId(null);
+    }
+  };
+
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case "ACTIVE":
@@ -91,6 +134,9 @@ export default function SubscriptionPage() {
         return <Badge variant="secondary">{status || "Inactive"}</Badge>;
     }
   };
+
+  const rawAmount = subscription?.cycleAmountMinor ?? subscription?.monthlyMinor ?? subscription?.priceMinor ?? 0;
+  const displayAmount = (rawAmount / 100).toFixed(2);
 
   return (
     <RoleGuard allowedRoles={["TENANT_OWNER"]}>
@@ -105,10 +151,17 @@ export default function SubscriptionPage() {
           </Button>
         </div>
 
+        {notice && (
+          <div className="p-4 rounded-lg bg-blue-50 text-blue-700 flex items-center gap-3 border border-blue-200 text-sm">
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-blue-600" />
+            <span>{notice}</span>
+          </div>
+        )}
+
         {error && (
-          <div className="p-4 rounded-lg bg-red-50 text-red-600 flex items-center gap-3 border border-red-200">
+          <div className="p-4 rounded-lg bg-red-50 text-red-600 flex items-center gap-3 border border-red-200 text-sm">
             <AlertCircle className="w-5 h-5 shrink-0" />
-            <span className="text-sm">{error}</span>
+            <span>{error}</span>
           </div>
         )}
 
@@ -128,7 +181,9 @@ export default function SubscriptionPage() {
             <Card className="border-blue-200 shadow-sm flex flex-col">
               <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-blue-900 text-lg">Active Plan</CardTitle>
+                  <CardTitle className="text-blue-900 text-lg">
+                    {subscription.planName || "Active Plan"}
+                  </CardTitle>
                   {getStatusBadge(subscription.status)}
                 </div>
                 <CardDescription className="text-xs">
@@ -139,7 +194,7 @@ export default function SubscriptionPage() {
               <CardContent className="pt-6 space-y-4 flex-1">
                 <div className="flex items-end gap-2 mb-2">
                   <span className="text-4xl font-bold tracking-tight text-slate-900">
-                    ${((subscription.priceMinor || 0) / 100).toFixed(2)}
+                    ${displayAmount}
                   </span>
                   <span className="text-slate-500 mb-1 text-sm">
                     / {subscription.billingCycle?.toLowerCase() === "yearly" ? "year" : "month"}
@@ -169,13 +224,20 @@ export default function SubscriptionPage() {
                   <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>
-                      Renews on: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                      {subscription.status === "TRIALING" ? "Trial ends on:" : "Renews on:"}{" "}
+                      {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                     </span>
+                  </div>
+                )}
+
+                {subscription.cancelAtPeriodEnd && (
+                  <div className="p-2.5 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    Subscription scheduled to end on period end date.
                   </div>
                 )}
               </CardContent>
 
-              <CardFooter className="pt-2 border-t border-slate-100 bg-slate-50/50">
+              <CardFooter className="pt-3 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-2">
                 <Button
                   variant="outline"
                   onClick={handleToggleCycle}
@@ -185,7 +247,20 @@ export default function SubscriptionPage() {
                   {isUpdatingCycle ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
                   ) : null}
-                  Switch to {subscription.billingCycle === "MONTHLY" ? "Yearly" : "Monthly"} Billing
+                  Switch to {subscription.billingCycle === "MONTHLY" ? "Yearly (20% Off)" : "Monthly"} Billing
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleCancel}
+                  disabled={isTogglingCancel}
+                  className="w-full text-xs text-slate-500 hover:text-red-600"
+                >
+                  {isTogglingCancel ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+                  ) : null}
+                  {subscription.cancelAtPeriodEnd ? "Resume Subscription" : "Cancel at Period End"}
                 </Button>
               </CardFooter>
             </Card>
@@ -204,7 +279,7 @@ export default function SubscriptionPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-xs text-slate-800">Direct Tenant Settle / Stripe</p>
-                        <p className="text-[11px] text-slate-500">Managed via payment integration</p>
+                        <p className="text-[11px] text-slate-500">Enterprise security & automatic receipting</p>
                       </div>
                     </div>
                   </div>
@@ -227,33 +302,46 @@ export default function SubscriptionPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {invoices.slice(0, 5).map((inv) => (
-                        <div key={inv._id} className="flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-medium text-slate-800">
-                              {inv.number ? `Invoice #${inv.number}` : "Platform Invoice"}
-                            </span>
-                            <p className="text-[11px] text-slate-400">
-                              {new Date(inv.issuedAt || inv.createdAt).toLocaleDateString()}
-                            </p>
+                      {invoices.slice(0, 5).map((inv) => {
+                        const invAmount = ((inv.totalMinor ?? inv.amountMinor ?? 0) / 100).toFixed(2);
+                        return (
+                          <div key={inv._id} className="flex justify-between items-center text-xs pb-2 border-b border-slate-100 last:border-0">
+                            <div>
+                              <span className="font-medium text-slate-800">
+                                {inv.number ? `Invoice #${inv.number}` : "Platform Invoice"}
+                              </span>
+                              <p className="text-[11px] text-slate-400">
+                                {new Date(inv.issuedAt || inv.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900">
+                                ${invAmount}
+                              </span>
+                              <Badge
+                                variant={inv.status === "PAID" ? "outline" : "default"}
+                                className={`text-[10px] ${
+                                  inv.status === "PAID"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-amber-100 text-amber-800 border-amber-300"
+                                }`}
+                              >
+                                {inv.status}
+                              </Badge>
+                              {inv.status === "OPEN" && (
+                                <Button
+                                  size="xs"
+                                  onClick={() => handlePayInvoice(inv._id)}
+                                  disabled={payingInvoiceId === inv._id}
+                                  className="h-6 px-2 text-[10px]"
+                                >
+                                  {payingInvoiceId === inv._id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Pay"}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-slate-900">
-                              ${((inv.amountMinor || 0) / 100).toFixed(2)}
-                            </span>
-                            <Badge
-                              variant={inv.status === "PAID" ? "outline" : "default"}
-                              className={`text-[10px] ${
-                                inv.status === "PAID"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : ""
-                              }`}
-                            >
-                              {inv.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
