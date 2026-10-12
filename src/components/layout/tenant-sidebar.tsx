@@ -75,15 +75,17 @@ const navGroups: NavGroup[] = [
 
 export function TenantSidebar() {
   const pathname = usePathname();
-  const { user, hasRole, hasModule } = useAuth();
+  const { user, tenant, hasRole, hasModule } = useAuth();
 
   if (!user) return null;
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col h-full shadow-lg overflow-y-auto">
       <div className="p-6 border-b border-white/10 shrink-0">
-        <h2 className="text-xl font-bold">Tenant Name</h2>
-        <p className="text-xs text-slate-400 mt-1">Tenant Dashboard</p>
+        <h2 className="text-xl font-bold truncate" title={tenant?.name || "Workspace"}>
+          {tenant?.name || "Workspace"}
+        </h2>
+        <p className="text-xs text-slate-400 mt-1">Operations Console</p>
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-6">

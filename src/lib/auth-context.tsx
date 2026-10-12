@@ -97,8 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (token: string, userData: User) => {
     localStorage.setItem("accessToken", token);
     setUser(userData);
-    // Usually, login returns the user with tenant. We can fetch /user/me or assume it's set.
-    // For simplicity, we just set the user for now. A reload or a subsequent state update will sync.
+    void refreshUser();
   };
 
   const logout = async () => {

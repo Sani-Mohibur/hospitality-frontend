@@ -51,11 +51,13 @@ function LoginForm() {
 
       if (res.ok) {
         // Handle successful login
-        login(data.data.accessToken, data.data);
+        const loggedUser = data.data.user || data.data;
+        login(data.data.accessToken, loggedUser);
 
         // Redirect to origin or dashboard
         const redirect = searchParams.get("redirect");
-        if (data.data.role === "SUPER_ADMIN") {
+        const role = loggedUser?.role;
+        if (role === "SUPER_ADMIN") {
           if (redirect && redirect.startsWith("/super-admin")) {
             router.push(redirect);
           } else {

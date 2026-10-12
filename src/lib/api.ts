@@ -17,6 +17,10 @@ export async function apiFetch(
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
+    const locId = typeof window !== 'undefined' ? localStorage.getItem("activeLocationId") : null;
+    if (locId && !headers.has("X-Location-Id")) {
+      headers.set("X-Location-Id", locId);
+    }
   }
 
   const config: RequestInit = {
@@ -63,3 +67,5 @@ export async function apiFetch(
 
   return response;
 }
+
+export { apiClient } from "./api-client";

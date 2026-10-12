@@ -51,7 +51,7 @@ export default function AccountPage() {
                 <div>
                   <div className="text-sm font-medium text-slate-500">Role</div>
                   <Badge variant="secondary" className="mt-1">
-                    {user.role.replace("_", " ")}
+                    {user.role ? user.role.replace("_", " ") : "USER"}
                   </Badge>
                 </div>
               </CardContent>
