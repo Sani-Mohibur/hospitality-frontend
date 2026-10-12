@@ -2,19 +2,21 @@
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
-const data = [
-  { name: "Jan", total: 4200 },
-  { name: "Feb", total: 5800 },
-  { name: "Mar", total: 8100 },
-  { name: "Apr", total: 9500 },
-  { name: "May", total: 12000 },
-  { name: "Jun", total: 15400 },
+const defaultData = [
+  { name: "May", total: 4200 },
+  { name: "Jun", total: 5800 },
+  { name: "Jul", total: 8100 },
+  { name: "Aug", total: 9500 },
+  { name: "Sep", total: 12000 },
+  { name: "Oct", total: 15400 },
 ];
 
-export function RevenueChart() {
+export function RevenueChart({ data = defaultData }: { data?: { name: string; total: number }[] }) {
+  const chartData = data.length > 0 ? data : defaultData;
+
   return (
     <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
         <XAxis
           dataKey="name"

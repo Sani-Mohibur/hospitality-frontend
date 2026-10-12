@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Search, 
   MoreHorizontal, 
@@ -13,7 +13,9 @@ import {
   Plus, 
   Tag, 
   DollarSign, 
-  Users 
+  Users,
+  RefreshCw,
+  AlertCircle 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,98 +32,41 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
-type ModuleStatus = "ACTIVE" | "INACTIVE" | "DEPRECATED";
-type ModulePricingModel = "FLAT_FEE" | "PER_USER" | "PER_LOCATION";
+type ModulePricingModel = "FLAT" | "PER_ROOM" | "PER_OUTLET" | "PER_LOCATION";
 
 interface PlatformModule {
-  id: string;
+  _id: string;
   code: string;
   name: string;
-  description: string;
-  category: string;
-  basePrice: number;
+  description?: string;
+  isAddOn?: boolean;
+  unitPriceMinor: number;
+  minimumMinor?: number;
+  bundleUnitPriceMinor?: number;
   pricingModel: ModulePricingModel;
-  status: ModuleStatus;
-  activeSubscribers: number;
-  updatedAt: string;
+  isActive: boolean;
+  activeSubscribers?: number;
+  updatedAt?: string;
 }
 
-const initialModules: PlatformModule[] = [
-  {
-    id: "MOD-001",
-    code: "HOSPITALITY",
-    name: "Hospitality Core",
-    description: "Property, rooms, guests & bookings management.",
-    category: "Core",
-    basePrice: 199,
-    pricingModel: "FLAT_FEE",
-    status: "ACTIVE",
-    activeSubscribers: 142,
-    updatedAt: "2026-08-15T10:00:00Z",
-  },
-  {
-    id: "MOD-002",
-    code: "RESTAURANT",
-    name: "Restaurant Core",
-    description: "Point of sale, menu, tables & KDS management.",
-    category: "Core",
-    basePrice: 149,
-    pricingModel: "FLAT_FEE",
-    status: "ACTIVE",
-    activeSubscribers: 98,
-    updatedAt: "2026-08-15T10:00:00Z",
-  },
-  {
-    id: "MOD-003",
-    code: "INVENTORY",
-    name: "Advanced Inventory",
-    description: "Centralized stock levels and ingredient tracking.",
-    category: "Add-on",
-    basePrice: 49,
-    pricingModel: "PER_LOCATION",
-    status: "ACTIVE",
-    activeSubscribers: 45,
-    updatedAt: "2026-09-01T14:30:00Z",
-  },
-  {
-    id: "MOD-004",
-    code: "STAFF_MANAGEMENT",
-    name: "Staff & Scheduling",
-    description: "Roster, timesheets, and role-based permissions.",
-    category: "Add-on",
-    basePrice: 5,
-    pricingModel: "PER_USER",
-    status: "ACTIVE",
-    activeSubscribers: 210,
-    updatedAt: "2026-07-20T09:15:00Z",
-  },
-  {
-    id: "MOD-005",
-    code: "SPA_SERVICES",
-    name: "Spa & Wellness",
-    description: "Appointments, treatments, and therapist scheduling.",
-    category: "Core",
-    basePrice: 99,
-    pricingModel: "FLAT_FEE",
-    status: "INACTIVE",
-    activeSubscribers: 0,
-    updatedAt: "2026-09-15T11:20:00Z",
-  },
-];
-
 export default function PlatformModulesPage() {
-  const [modules, setModules] = useState<PlatformModule[]>(initialModules);
+  const [modules, setModules] = useState<PlatformModule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
 
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Form and action state
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingModule, setEditingModule] = useState<PlatformModule | null>(null);
   const [actionModule, setActionModule] = useState<PlatformModule | null>(null);
   const [actionType, setActionType] = useState<"DISABLE" | "ENABLE">("DISABLE");
 
@@ -131,97 +76,145 @@ export default function PlatformModulesPage() {
     description: "",
     category: "Core",
     basePrice: "",
-    pricingModel: "FLAT_FEE" as ModulePricingModel,
+    pricingModel: "FLAT" as ModulePricingModel,
   });
+
+  const fetchModules = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch("/platform-module");
+      if (res.ok) {
+        const data = await res.json();
+        setModules(data.data || []);
+      } else {
+        const errData = await res.json().catch(() => null);
+        setError(errData?.message || "Failed to load platform modules");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("An unexpected error occurred while loading modules");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchModules();
+  }, [fetchModules]);
 
   const filteredModules = modules.filter(mod => {
     const term = search.toLowerCase();
     const matchesSearch = mod.name.toLowerCase().includes(term) || 
                           mod.code.toLowerCase().includes(term);
-    const matchesStatus = statusFilter === "ALL" || mod.status === statusFilter;
-    const matchesCategory = categoryFilter === "ALL" || mod.category === categoryFilter;
+    const modStatus = mod.isActive ? "ACTIVE" : "INACTIVE";
+    const matchesStatus = statusFilter === "ALL" || modStatus === statusFilter;
+    const modCategory = mod.isAddOn ? "Add-on" : "Core";
+    const matchesCategory = categoryFilter === "ALL" || modCategory === categoryFilter;
     
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const getStatusColor = (status: ModuleStatus) => {
-    switch (status) {
-      case "ACTIVE": return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "INACTIVE": return "bg-slate-100 text-slate-700 border-slate-200";
-      case "DEPRECATED": return "bg-amber-100 text-amber-700 border-amber-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  };
-
   const getPricingModelLabel = (model: ModulePricingModel) => {
     switch (model) {
-      case "FLAT_FEE": return "Flat Fee";
-      case "PER_USER": return "Per User";
+      case "FLAT": return "Flat Fee";
+      case "PER_ROOM": return "Per Room";
+      case "PER_OUTLET": return "Per Outlet";
       case "PER_LOCATION": return "Per Location";
       default: return model;
     }
   };
 
   const openAddForm = () => {
-    setEditingId(null);
+    setEditingModule(null);
     setFormData({
       code: "",
       name: "",
       description: "",
       category: "Core",
       basePrice: "",
-      pricingModel: "FLAT_FEE",
+      pricingModel: "FLAT",
     });
     setIsFormOpen(true);
   };
 
   const openEditForm = (mod: PlatformModule) => {
-    setEditingId(mod.id);
+    setEditingModule(mod);
     setFormData({
       code: mod.code,
       name: mod.name,
-      description: mod.description,
-      category: mod.category,
-      basePrice: mod.basePrice.toString(),
-      pricingModel: mod.pricingModel,
+      description: mod.description || "",
+      category: mod.isAddOn ? "Add-on" : "Core",
+      basePrice: ((mod.unitPriceMinor || 0) / 100).toString(),
+      pricingModel: mod.pricingModel || "FLAT",
     });
     setIsFormOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const priceNum = parseFloat(formData.basePrice);
 
     if (!formData.name || !formData.code || isNaN(priceNum) || priceNum < 0) {
-      toast.error("Please fill all required fields correctly. Price must be a positive number.");
+      toast.error("Please fill all required fields correctly. Price must be positive.");
       return;
     }
 
-    if (editingId) {
-      setModules(modules.map(m => 
-        m.id === editingId ? { 
-          ...m, 
-          ...formData, 
-          code: formData.code.toUpperCase(),
-          basePrice: priceNum,
-          updatedAt: new Date().toISOString()
-        } : m
-      ));
-      toast.success("Platform module updated successfully.");
-    } else {
-      const newModule: PlatformModule = {
-        id: `MOD-00${modules.length + 1}`,
-        ...formData,
-        code: formData.code.toUpperCase(),
-        basePrice: priceNum,
-        status: "INACTIVE", // Default to inactive when created
-        activeSubscribers: 0,
-        updatedAt: new Date().toISOString()
-      };
-      setModules([...modules, newModule]);
-      toast.success("New platform module created.");
+    setIsSubmitting(true);
+    const unitPriceMinor = Math.round(priceNum * 100);
+    const isAddOn = formData.category !== "Core";
+
+    try {
+      if (editingModule) {
+        const res = await apiFetch(`/platform-module/${editingModule._id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: formData.name,
+            code: formData.code.toUpperCase(),
+            description: formData.description,
+            isAddOn,
+            unitPriceMinor,
+            pricingModel: formData.pricingModel,
+          }),
+        });
+
+        if (res.ok) {
+          toast.success("Platform module updated successfully.");
+          setIsFormOpen(false);
+          fetchModules();
+        } else {
+          const errData = await res.json().catch(() => null);
+          toast.error(errData?.message || "Failed to update module.");
+        }
+      } else {
+        const res = await apiFetch("/platform-module", {
+          method: "POST",
+          body: JSON.stringify({
+            name: formData.name,
+            code: formData.code.toUpperCase(),
+            description: formData.description,
+            isAddOn,
+            unitPriceMinor,
+            pricingModel: formData.pricingModel,
+            isActive: true,
+          }),
+        });
+
+        if (res.ok) {
+          toast.success("New platform module created successfully.");
+          setIsFormOpen(false);
+          fetchModules();
+        } else {
+          const errData = await res.json().catch(() => null);
+          toast.error(errData?.message || "Failed to create module.");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsFormOpen(false);
   };
 
   const openConfirmDialog = (mod: PlatformModule, type: "DISABLE" | "ENABLE") => {
@@ -230,16 +223,35 @@ export default function PlatformModulesPage() {
     setIsConfirmOpen(true);
   };
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
     if (!actionModule) return;
-    const newStatus = actionType === "DISABLE" ? "INACTIVE" : "ACTIVE";
-    setModules(modules.map(m => m.id === actionModule.id ? { ...m, status: newStatus } : m));
-    setIsConfirmOpen(false);
-    toast.success(`Module ${actionModule.name} has been ${actionType === "DISABLE" ? "disabled" : "enabled"}.`);
+    setIsActionLoading(true);
+
+    try {
+      const newActive = actionType === "ENABLE";
+      const res = await apiFetch(`/platform-module/${actionModule._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: newActive }),
+      });
+
+      if (res.ok) {
+        toast.success(`Module ${actionModule.name} has been ${actionType === "DISABLE" ? "disabled" : "enabled"}.`);
+        setIsConfirmOpen(false);
+        fetchModules();
+      } else {
+        const errData = await res.json().catch(() => null);
+        toast.error(errData?.message || "Failed to update module status.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An unexpected error occurred.");
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
-  const totalActiveModules = modules.filter(m => m.status === "ACTIVE").length;
-  const totalSubscribers = modules.reduce((acc, mod) => acc + mod.activeSubscribers, 0);
+  const totalActiveModules = modules.filter(m => m.isActive).length;
+  const totalSubscribers = modules.reduce((acc, mod) => acc + (mod.activeSubscribers || 0), 0);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
@@ -247,20 +259,43 @@ export default function PlatformModulesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Platform Modules</h1>
-          <p className="text-slate-500 mt-1">Configure global modules, pricing, and system features.</p>
+          <p className="text-slate-500 mt-1">Configure global catalog modules, unit rates, and pricing models.</p>
         </div>
-        <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
-          <Plus className="w-4 h-4 mr-2" /> Add Module
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchModules} 
+            disabled={loading}
+            className="cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button onClick={openAddForm} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
+            <Plus className="w-4 h-4 mr-2" /> Add Module
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+            <span className="text-sm">{error}</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchModules} className="cursor-pointer border-red-200 text-red-700 hover:bg-red-100">
+            Retry
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Total Modules</p>
+            <p className="text-sm font-medium text-slate-500">Total Catalog Modules</p>
             <h3 className="text-2xl font-bold text-slate-900">{modules.length}</h3>
           </div>
         </div>
@@ -278,7 +313,7 @@ export default function PlatformModulesPage() {
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-500">Total Deployments</p>
+            <p className="text-sm font-medium text-slate-500">Subscribed Deployments</p>
             <h3 className="text-2xl font-bold text-slate-900">{totalSubscribers}</h3>
           </div>
         </div>
@@ -304,7 +339,6 @@ export default function PlatformModulesPage() {
               <SelectItem value="ALL" className="cursor-pointer">All Statuses</SelectItem>
               <SelectItem value="ACTIVE" className="cursor-pointer">Active</SelectItem>
               <SelectItem value="INACTIVE" className="cursor-pointer">Inactive</SelectItem>
-              <SelectItem value="DEPRECATED" className="cursor-pointer">Deprecated</SelectItem>
             </SelectContent>
           </Select>
 
@@ -316,7 +350,6 @@ export default function PlatformModulesPage() {
               <SelectItem value="ALL" className="cursor-pointer">All Categories</SelectItem>
               <SelectItem value="Core" className="cursor-pointer">Core</SelectItem>
               <SelectItem value="Add-on" className="cursor-pointer">Add-on</SelectItem>
-              <SelectItem value="Integration" className="cursor-pointer">Integration</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -337,70 +370,95 @@ export default function PlatformModulesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredModules.length > 0 ? (
-                filteredModules.map((mod) => (
-                  <TableRow key={mod.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <TableCell>
-                      <div className="flex items-start gap-3 max-w-[300px]">
-                        <div className="mt-1 p-2 bg-slate-100 text-slate-600 rounded-lg shrink-0">
-                          <Package className="w-4 h-4" />
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-48 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mb-3" />
+                      <p className="text-sm font-medium">Loading catalog modules...</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredModules.length > 0 ? (
+                filteredModules.map((mod) => {
+                  const dollars = ((mod.unitPriceMinor || 0) / 100).toFixed(2);
+                  const isCore = !mod.isAddOn;
+
+                  return (
+                    <TableRow key={mod._id} className="hover:bg-slate-50/50 transition-colors group">
+                      <TableCell>
+                        <div className="flex items-start gap-3 max-w-[300px]">
+                          <div className="mt-1 p-2 bg-slate-100 text-slate-600 rounded-lg shrink-0">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">{mod.name}</div>
+                            <div className="text-xs text-slate-500 font-mono mt-0.5">{mod.code}</div>
+                            {mod.description && (
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-1" title={mod.description}>
+                                {mod.description}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-slate-900">{mod.name}</div>
-                          <div className="text-xs text-slate-500 font-mono mt-0.5">{mod.code}</div>
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-1" title={mod.description}>{mod.description}</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm font-medium text-slate-600">
+                          <Tag className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                          {isCore ? "Core" : "Add-on"}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm font-medium text-slate-600">
-                        <Tag className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-                        {mod.category}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold text-slate-900 flex items-center">
-                        <DollarSign className="w-3.5 h-3.5 mr-0.5 text-slate-400" />
-                        {mod.basePrice}
-                      </div>
-                      <Badge variant="outline" className="mt-1 bg-white text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        {getPricingModelLabel(mod.pricingModel)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-medium text-slate-700">{mod.activeSubscribers}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`${getStatusColor(mod.status)} font-semibold`}>
-                        {mod.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuLabel>Module Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEditForm(mod)} className="cursor-pointer">
-                            <Edit className="mr-2 h-4 w-4 text-slate-500" /> Edit Configuration
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {mod.status === "ACTIVE" ? (
-                            <DropdownMenuItem onClick={() => openConfirmDialog(mod, "DISABLE")} className="text-red-600 cursor-pointer focus:text-red-600">
-                              <PowerOff className="mr-2 h-4 w-4" /> Disable Module
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-slate-900 flex items-center">
+                          <DollarSign className="w-3.5 h-3.5 mr-0.5 text-slate-400" />
+                          {dollars}
+                        </div>
+                        <Badge variant="outline" className="mt-1 bg-white text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          {getPricingModelLabel(mod.pricingModel)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-medium text-slate-700">{mod.activeSubscribers ?? 0}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={`font-semibold ${
+                            mod.isActive 
+                              ? "bg-emerald-100 text-emerald-700 border-emerald-200" 
+                              : "bg-slate-100 text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          {mod.isActive ? "ACTIVE" : "INACTIVE"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 p-0 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Module Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openEditForm(mod)} className="cursor-pointer">
+                              <Edit className="mr-2 h-4 w-4 text-slate-500" /> Edit Configuration
                             </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => openConfirmDialog(mod, "ENABLE")} className="text-emerald-600 cursor-pointer focus:text-emerald-600">
-                              <Power className="mr-2 h-4 w-4" /> Enable Module
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                            <DropdownMenuSeparator />
+                            {mod.isActive ? (
+                              <DropdownMenuItem onClick={() => openConfirmDialog(mod, "DISABLE")} className="text-red-600 cursor-pointer focus:text-red-600">
+                                <PowerOff className="mr-2 h-4 w-4" /> Disable Module
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => openConfirmDialog(mod, "ENABLE")} className="text-emerald-600 cursor-pointer focus:text-emerald-600">
+                                <Power className="mr-2 h-4 w-4" /> Enable Module
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-48 text-center text-slate-500">
@@ -421,26 +479,44 @@ export default function PlatformModulesPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Platform Module" : "Add Platform Module"}</DialogTitle>
+            <DialogTitle>{editingModule ? "Edit Platform Module" : "Add Platform Module"}</DialogTitle>
             <DialogDescription>
-              {editingId ? "Update the configuration and pricing for this module." : "Define a new feature module available for tenant subscription."}
+              {editingModule ? "Update the rate and model configuration for this module." : "Define a new feature module available in the SaaS catalog."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleFormSubmit} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Module Name <span className="text-red-500">*</span></Label>
-                <Input id="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. Spa & Wellness" required />
+                <Input 
+                  id="name" 
+                  value={formData.name} 
+                  onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                  placeholder="e.g. Spa & Wellness" 
+                  required 
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="code">Module Code <span className="text-red-500">*</span></Label>
-                <Input id="code" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} placeholder="e.g. SPA_SERVICES" className="uppercase" required />
+                <Input 
+                  id="code" 
+                  value={formData.code} 
+                  onChange={(e) => setFormData({...formData, code: e.target.value})} 
+                  placeholder="e.g. SPA_SERVICES" 
+                  className="uppercase" 
+                  required 
+                />
               </div>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Brief description of features..." />
+              <Input 
+                id="description" 
+                value={formData.description} 
+                onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                placeholder="Brief description of features..." 
+              />
             </div>
 
             <div className="space-y-2">
@@ -452,7 +528,6 @@ export default function PlatformModulesPage() {
                 <SelectContent>
                   <SelectItem value="Core" className="cursor-pointer">Core</SelectItem>
                   <SelectItem value="Add-on" className="cursor-pointer">Add-on</SelectItem>
-                  <SelectItem value="Integration" className="cursor-pointer">Integration</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -460,7 +535,15 @@ export default function PlatformModulesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="basePrice">Base Price ($) <span className="text-red-500">*</span></Label>
-                <Input id="basePrice" type="number" min="0" step="0.01" value={formData.basePrice} onChange={(e) => setFormData({...formData, basePrice: e.target.value})} required />
+                <Input 
+                  id="basePrice" 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  value={formData.basePrice} 
+                  onChange={(e) => setFormData({...formData, basePrice: e.target.value})} 
+                  required 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Pricing Model</Label>
@@ -469,8 +552,9 @@ export default function PlatformModulesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FLAT_FEE" className="cursor-pointer">Flat Fee</SelectItem>
-                    <SelectItem value="PER_USER" className="cursor-pointer">Per User</SelectItem>
+                    <SelectItem value="FLAT" className="cursor-pointer">Flat Fee</SelectItem>
+                    <SelectItem value="PER_ROOM" className="cursor-pointer">Per Room</SelectItem>
+                    <SelectItem value="PER_OUTLET" className="cursor-pointer">Per Outlet</SelectItem>
                     <SelectItem value="PER_LOCATION" className="cursor-pointer">Per Location</SelectItem>
                   </SelectContent>
                 </Select>
@@ -479,8 +563,8 @@ export default function PlatformModulesPage() {
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="cursor-pointer">Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
-                {editingId ? "Save Changes" : "Create Module"}
+              <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+                {isSubmitting ? "Saving..." : editingModule ? "Save Changes" : "Create Module"}
               </Button>
             </DialogFooter>
           </form>
@@ -496,8 +580,8 @@ export default function PlatformModulesPage() {
             </DialogTitle>
             <DialogDescription className="mt-2 text-slate-600">
               {actionType === "DISABLE" 
-                ? `Are you sure you want to disable ${actionModule?.name}? New tenants will not be able to subscribe to it. Existing subscriptions will not be cancelled automatically.`
-                : `Are you sure you want to enable ${actionModule?.name}? It will become available for new subscriptions immediately.`}
+                ? `Are you sure you want to disable ${actionModule?.name}? New tenants will not be able to subscribe to it.`
+                : `Are you sure you want to enable ${actionModule?.name}? It will become available for subscriptions immediately.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
@@ -505,9 +589,10 @@ export default function PlatformModulesPage() {
             <Button 
               variant={actionType === "DISABLE" ? "destructive" : "default"} 
               onClick={confirmAction}
+              disabled={isActionLoading}
               className={`cursor-pointer ${actionType === "ENABLE" ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
             >
-              Confirm
+              {isActionLoading ? "Processing..." : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>

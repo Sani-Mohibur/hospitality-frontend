@@ -55,12 +55,18 @@ function LoginForm() {
 
         // Redirect to origin or dashboard
         const redirect = searchParams.get("redirect");
-        if (redirect) {
-          router.push(redirect);
-        } else if (data.data.role === "SUPER_ADMIN") {
-          router.push("/super-admin");
+        if (data.data.role === "SUPER_ADMIN") {
+          if (redirect && redirect.startsWith("/super-admin")) {
+            router.push(redirect);
+          } else {
+            router.push("/super-admin");
+          }
         } else {
-          router.push("/account");
+          if (redirect && !redirect.startsWith("/super-admin")) {
+            router.push(redirect);
+          } else {
+            router.push("/account");
+          }
         }
       } else {
         setError(data.message || "Failed to login. Please try again.");

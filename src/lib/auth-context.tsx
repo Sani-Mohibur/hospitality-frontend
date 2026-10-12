@@ -37,6 +37,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, userData: User) => void;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   setUserRole: (role: Role) => void;
   toggleModule: (module: Module) => void;
   hasRole: (allowedRoles: Role[]) => boolean;
@@ -49,6 +50,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshUser = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      try {
+        const res = await apiFetch("/user/me");
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.data as User);
+          if (data.data.tenant) {
+            setTenant(data.data.tenant as Tenant);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile", error);
+      }
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
@@ -129,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshUser,
         setUserRole,
         toggleModule,
         hasRole,
