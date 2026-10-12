@@ -95,7 +95,7 @@ export default function SignupPage() {
       if (res.ok) {
         // Handle successful signup
         login(data.data.accessToken, data.data);
-        router.push("/tenant/dashboard");
+        router.push("/account");
       } else {
         setError(data.message || "Failed to sign up. Please try again.");
       }

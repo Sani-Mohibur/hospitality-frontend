@@ -16,10 +16,19 @@ interface User {
   tenantId?: string;
 }
 
+interface Subscription {
+  id: string;
+  planName: string;
+  status: string;
+  currentPeriodEnd: string;
+}
+
 interface Tenant {
   id: string;
   name: string;
+  status: string;
   subscribedModules: Module[];
+  subscription: Subscription | null;
 }
 
 interface AuthContextType {
@@ -51,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const data = await res.json();
             setUser(data.data as User);
             if (data.data.tenant) {
-              setTenant(data.data.tenant);
+              setTenant(data.data.tenant as Tenant);
             }
           } else {
             localStorage.removeItem("accessToken");

@@ -60,7 +60,7 @@ function LoginForm() {
         } else if (data.data.role === "SUPER_ADMIN") {
           router.push("/super-admin");
         } else {
-          router.push("/tenant/dashboard");
+          router.push("/account");
         }
       } else {
         setError(data.message || "Failed to login. Please try again.");
