@@ -36,15 +36,20 @@ export function SiteHeader() {
 
   const overDark = DARK_HERO_ROUTES.includes(pathname) && !scrolled && !open;
 
+  const hasActiveAccess =
+    (tenant?.status === "ACTIVE" || tenant?.status === "TRIALING") &&
+    Array.isArray(tenant?.subscribedModules) &&
+    tenant.subscribedModules.length > 0;
+
   const dashboardHref = user?.role === "SUPER_ADMIN"
     ? "/super-admin"
-    : user?.tenantId || tenant
+    : hasActiveAccess
       ? "/tenant/dashboard"
       : "/account";
 
   const dashboardLabel = user?.role === "SUPER_ADMIN"
     ? "Admin Panel"
-    : user?.tenantId || tenant
+    : hasActiveAccess
       ? "Dashboard"
       : "My Account";
 

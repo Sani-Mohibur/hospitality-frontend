@@ -25,8 +25,14 @@ export function ModuleGuard({ module, children }: ModuleGuardProps) {
         <h2 className="text-2xl font-bold text-slate-800">Module Not Subscribed</h2>
         <p className="text-slate-500 max-w-md">
           Your organization is not currently subscribed to the {module} module. 
-          Please contact support or upgrade your subscription to access these features.
+          Please upgrade your subscription to access these features.
         </p>
+        <a
+          href="/account"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm"
+        >
+          Manage Subscriptions &amp; Modules
+        </a>
       </div>
     );
   }

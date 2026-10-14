@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Building2, Check, Lock, Mail, User } from "lucide-react";
+import { ArrowRight, Check, Lock, Mail, User } from "lucide-react";
 import resortTerrace from "@/assets/home/resort-terrace.jpg";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
@@ -13,15 +13,15 @@ import { AuthHeading, AuthShell } from "@/components/auth/auth-shell";
 import { AuthAlert, AuthField, AuthSubmit, EMAIL_RE } from "@/components/auth/auth-form";
 import { TRIAL_DAYS } from "@/lib/marketing/plans";
 
-type SignupForm = { businessName: string; ownerName: string; email: string; password: string };
+type SignupForm = { ownerName: string; email: string; password: string };
 type FieldErrors = Partial<Record<keyof SignupForm, string>>;
 
-/** Mirrors the backend /auth/signup validation (businessName ≥ 2, password ≥ 8). */
+/** Mirrors the backend /auth/signup validation (ownerName ≥ 2, password ≥ 8). */
 function validate(f: SignupForm): FieldErrors {
   const errors: FieldErrors = {};
-  if (f.businessName.trim().length < 2) errors.businessName = "Business name must be at least 2 characters.";
   if (!f.ownerName.trim()) errors.ownerName = "Enter your full name.";
-  if (!f.email.trim()) errors.email = "Enter your work email.";
+  else if (f.ownerName.trim().length < 2) errors.ownerName = "Name must be at least 2 characters.";
+  if (!f.email.trim()) errors.email = "Enter your email.";
   else if (!EMAIL_RE.test(f.email.trim())) errors.email = "Enter a valid email address.";
   if (f.password.length < 8) errors.password = "Password must be at least 8 characters.";
   return errors;
@@ -57,7 +57,6 @@ function PasswordMeter({ value }: { value: string }) {
 
 function SignupContent() {
   const [SignupForm, setFormData] = useState<SignupForm>({
-    businessName: "",
     ownerName: "",
     email: "",
     password: "",
@@ -95,8 +94,11 @@ function SignupContent() {
       const res = await apiFetch("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
-          ...SignupForm,
-          modules: selectedModules,
+          businessName: `${SignupForm.ownerName.trim()}'s Workspace`,
+          ownerName: SignupForm.ownerName.trim(),
+          email: SignupForm.email.trim(),
+          password: SignupForm.password,
+          modules: [],
         }),
         requireAuth: false,
       });
@@ -107,7 +109,7 @@ function SignupContent() {
         // Handle successful signup
         const user = data.data.user || data.data;
         login(data.data.accessToken, user);
-        const redirect = searchParams.get("redirect") || "/tenant/dashboard";
+        const redirect = searchParams.get("redirect") || "/account";
         router.push(redirect);
       } else {
         setError(data.message || "Failed to sign up. Please try again.");
@@ -161,43 +163,29 @@ function SignupContent() {
       <form onSubmit={handleSignup} noValidate className="space-y-5">
         <AuthAlert message={error} />
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <AuthField
-            id="businessName"
-            name="businessName"
-            label="Business name"
-            icon={Building2}
-            autoComplete="organization"
-            placeholder="The Grand Hotel"
-            value={SignupForm.businessName}
-            onChange={handleChange}
-            error={fieldErrors.businessName}
-            disabled={loading}
-            autoFocus
-          />
-          <AuthField
-            id="ownerName"
-            name="ownerName"
-            label="Your name"
-            icon={User}
-            autoComplete="name"
-            placeholder="Jane Doe"
-            value={SignupForm.ownerName}
-            onChange={handleChange}
-            error={fieldErrors.ownerName}
-            disabled={loading}
-          />
-        </div>
+        <AuthField
+          id="ownerName"
+          name="ownerName"
+          label="Your name"
+          icon={User}
+          autoComplete="name"
+          placeholder="Enter your full name"
+          value={SignupForm.ownerName}
+          onChange={handleChange}
+          error={fieldErrors.ownerName}
+          disabled={loading}
+          autoFocus
+        />
 
         <AuthField
           id="email"
           name="email"
           type="email"
-          label="Work email"
+          label="Email"
           icon={Mail}
           autoComplete="email"
           inputMode="email"
-          placeholder="you@yourhotel.com"
+          placeholder="you@example.com"
           value={SignupForm.email}
           onChange={handleChange}
           error={fieldErrors.email}

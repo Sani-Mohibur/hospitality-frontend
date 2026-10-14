@@ -6,7 +6,7 @@ import { apiFetch } from "./api";
 export type Role = "SUPER_ADMIN" | "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
 export type Module = "HOSPITALITY" | "RESTAURANT" | "INVENTORY" | "DISTRIBUTION" | "AI_ASSISTANT";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
@@ -16,14 +16,14 @@ interface User {
   tenantId?: string;
 }
 
-interface Subscription {
+export interface Subscription {
   id: string;
   planName: string;
   status: string;
   currentPeriodEnd: string;
 }
 
-interface Tenant {
+export interface Tenant {
   id: string;
   name: string;
   status: string;
