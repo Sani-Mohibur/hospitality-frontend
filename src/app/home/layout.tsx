@@ -7,7 +7,7 @@ export default function HomeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-mk-ivory-50 text-mk-espresso-900 antialiased selection:bg-mk-champagne-300 selection:text-mk-espresso-900">
+    <div className="flex min-h-screen flex-col bg-ivory text-ink antialiased selection:bg-champagne/30 selection:text-ink">
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
