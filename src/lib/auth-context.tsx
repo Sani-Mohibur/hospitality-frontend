@@ -14,6 +14,8 @@ export interface User {
   permissions?: string[];
   impersonatedBy?: string;
   tenantId?: string;
+  phone?: string;
+  isActive?: boolean;
 }
 
 export interface Subscription {
