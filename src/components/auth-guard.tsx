@@ -25,7 +25,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         if (user.role === "SUPER_ADMIN") {
           router.push("/super-admin");
         } else {
-          router.push("/account");
+          router.push("/tenant/dashboard");
         }
       }
     }

@@ -194,10 +194,10 @@ export default function InventoryPage() {
           <p className="text-sm text-slate-500">Track and manage stock levels across hotel and dining outlets.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchInventory()} disabled={isLoading} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchInventory()} disabled={isLoading} className="gap-2 cursor-pointer">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
             <PackagePlus className="w-4 h-4" /> Add Stock Item
           </Button>
         </div>
@@ -225,7 +225,7 @@ export default function InventoryPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs focus:ring-2 focus:ring-blue-500"
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               <option value="ALL">All Categories ({items.length})</option>
               {categories.map((c) => (
@@ -288,7 +288,7 @@ export default function InventoryPage() {
                             });
                             setIsAdjustOpen(true);
                           }}
-                          className="h-8 text-xs gap-1 text-blue-600 hover:bg-blue-50"
+                          className="h-8 text-xs gap-1 text-blue-600 hover:bg-blue-50 cursor-pointer"
                         >
                           <SlidersHorizontal className="w-3.5 h-3.5" /> Adjust
                         </Button>
@@ -296,7 +296,7 @@ export default function InventoryPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteItem(item._id)}
-                          className="h-8 w-8 text-red-600 hover:bg-red-50"
+                          className="h-8 w-8 text-red-600 hover:bg-red-50 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -398,10 +398,10 @@ export default function InventoryPage() {
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} className="cursor-pointer">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Save Item
               </Button>
@@ -432,7 +432,7 @@ export default function InventoryPage() {
                     id="adjustType"
                     value={adjustForm.type}
                     onChange={(e) => setAdjustForm({ ...adjustForm, type: e.target.value as any })}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
                     <option value="ADD">Add / Receive (+)</option>
                     <option value="SUBTRACT">Deduct / Spoilage (-)</option>
@@ -463,10 +463,10 @@ export default function InventoryPage() {
               </div>
 
               <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsAdjustOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsAdjustOpen(false)} className="cursor-pointer">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Confirm Adjustment
                 </Button>

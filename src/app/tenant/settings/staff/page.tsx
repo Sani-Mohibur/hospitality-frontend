@@ -15,15 +15,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, UserPlus, Loader2, AlertCircle, RefreshCw, Trash2, Mail } from "lucide-react";
+import { Search, UserPlus, Loader2, AlertCircle, RefreshCw, Trash2, MapPin, CheckCircle2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
+
+interface TenantLocation {
+  _id: string;
+  name: string;
+}
 
 interface StaffMember {
   _id: string;
   name: string;
-  email?: string;
+  email: string;
   phone?: string;
   role: "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
+  allLocations?: boolean;
+  locationIds?: string[];
   isActive?: boolean;
   createdAt?: string;
 }
@@ -33,7 +41,7 @@ function getRoleBadge(role: string) {
     case "TENANT_OWNER":
       return <Badge variant="outline" className="text-purple-700 bg-purple-50 border-purple-200">Owner</Badge>;
     case "TENANT_MANAGER":
-      return <Badge variant="outline" className="text-blue-700 bg-blue-50 border-blue-200">Manager</Badge>;
+      return <Badge variant="outline" className="text-blue-700 bg-blue-50 border-blue-200">Tenant Manager</Badge>;
     case "STAFF":
       return <Badge variant="outline" className="text-slate-700 bg-slate-100 border-slate-200">Staff</Badge>;
     default:
@@ -42,20 +50,36 @@ function getRoleBadge(role: string) {
 }
 
 export default function StaffSettingsPage() {
+  const { user: currentUser } = useAuth();
+  const isOwner = currentUser?.role === "TENANT_OWNER" || currentUser?.role === "SUPER_ADMIN";
+
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [locations, setLocations] = useState<TenantLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  // Invite Modal
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  // Add Staff Modal State
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Email availability check state
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ checked: boolean; exists: boolean; message: string | null }>({
+    checked: false,
+    exists: false,
+    message: null,
+  });
+
+  const [staffForm, setStaffForm] = useState({
     name: "",
     email: "",
-    role: "STAFF" as "TENANT_MANAGER" | "STAFF",
+    phone: "",
     password: "",
-    pin: "",
+    role: "STAFF" as "TENANT_MANAGER" | "STAFF",
+    allLocations: true,
+    locationIds: [] as string[],
   });
 
   const fetchStaff = useCallback(async () => {
@@ -71,9 +95,19 @@ export default function StaffSettingsPage() {
     }
   }, []);
 
+  const fetchLocations = useCallback(async () => {
+    try {
+      const locsRes = await apiClient.get<TenantLocation[]>("/location");
+      if (Array.isArray(locsRes.data)) setLocations(locsRes.data);
+    } catch (err) {
+      console.error("Could not load locations", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStaff();
-  }, [fetchStaff]);
+    fetchLocations();
+  }, [fetchStaff, fetchLocations]);
 
   const filteredStaff = useMemo(() => {
     return staffList.filter((s) => {
@@ -85,32 +119,105 @@ export default function StaffSettingsPage() {
     });
   }, [staffList, search]);
 
+  // Live database check for duplicate email
+  const checkEmailAvailability = async (emailToCheck: string) => {
+    const trimmed = emailToCheck.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes("@")) {
+      setEmailStatus({ checked: false, exists: false, message: null });
+      return;
+    }
+
+    setEmailCheckLoading(true);
+    try {
+      const res = await apiClient.get<{ exists: boolean }>(`/user/check-email?email=${encodeURIComponent(trimmed)}`);
+      if (res.data?.exists) {
+        setEmailStatus({
+          checked: true,
+          exists: true,
+          message: "A user with this email address already exists in the database.",
+        });
+      } else {
+        setEmailStatus({
+          checked: true,
+          exists: false,
+          message: "Email address is available.",
+        });
+      }
+    } catch {
+      setEmailStatus({ checked: false, exists: false, message: null });
+    } finally {
+      setEmailCheckLoading(false);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    setFormError(null);
+    setEmailStatus({ checked: false, exists: false, message: null });
+    setStaffForm({
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "STAFF",
+      allLocations: true,
+      locationIds: [],
+    });
+    setIsAddOpen(true);
+  };
+
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteForm.name.trim()) return;
+    setFormError(null);
+
+    if (!staffForm.name.trim()) {
+      setFormError("Full Name is required.");
+      return;
+    }
+
+    if (!staffForm.email.trim()) {
+      setFormError("Email address is required.");
+      return;
+    }
+
+    if (!staffForm.password || staffForm.password.length < 8) {
+      setFormError("Password must be at least 8 characters.");
+      return;
+    }
+
+    // Verify email duplicate before submission
+    const trimmedEmail = staffForm.email.trim().toLowerCase();
+    try {
+      const checkRes = await apiClient.get<{ exists: boolean }>(`/user/check-email?email=${encodeURIComponent(trimmedEmail)}`);
+      if (checkRes.data?.exists) {
+        setEmailStatus({
+          checked: true,
+          exists: true,
+          message: "A user with this email address already exists in the database.",
+        });
+        setFormError("Cannot create staff: This email address is already registered.");
+        return;
+      }
+    } catch (err: any) {
+      console.error("Email pre-check error", err);
+    }
 
     setIsSubmitting(true);
     try {
       await apiClient.post("/user/staff", {
-        name: inviteForm.name.trim(),
-        email: inviteForm.email.trim() || undefined,
-        role: inviteForm.role,
-        password: inviteForm.password || undefined,
-        pin: inviteForm.pin || undefined,
-        allLocations: true,
+        name: staffForm.name.trim(),
+        email: trimmedEmail,
+        password: staffForm.password,
+        phone: staffForm.phone.trim() || undefined,
+        role: staffForm.role,
+        allLocations: staffForm.allLocations,
+        locationIds: staffForm.allLocations ? [] : staffForm.locationIds,
+        sendInvite: false,
       });
 
-      setIsInviteOpen(false);
-      setInviteForm({
-        name: "",
-        email: "",
-        role: "STAFF",
-        password: "",
-        pin: "",
-      });
+      setIsAddOpen(false);
       fetchStaff();
     } catch (err: any) {
-      alert(err?.message || "Failed to invite staff member");
+      setFormError(err?.message || "Failed to add staff member.");
     } finally {
       setIsSubmitting(false);
     }
@@ -126,29 +233,22 @@ export default function StaffSettingsPage() {
     }
   };
 
-  const handleResendInvite = async (id: string) => {
-    try {
-      await apiClient.post(`/user/staff/${id}/invite`, {});
-      alert("Invitation sent successfully!");
-    } catch (err: any) {
-      alert(err?.message || "Could not resend invite");
-    }
-  };
-
   return (
     <RoleGuard allowedRoles={["TENANT_OWNER", "TENANT_MANAGER"]}>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staff Management</h1>
-            <p className="text-sm text-slate-500">Manage tenant users, assign roles, and control access permissions.</p>
+            <p className="text-sm text-slate-500">
+              Directly add and manage team members and managers across your locations.
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => fetchStaff()} disabled={isLoading} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => fetchStaff()} disabled={isLoading} className="gap-2 cursor-pointer">
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
             </Button>
-            <Button onClick={() => setIsInviteOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-              <UserPlus className="w-4 h-4" /> Invite Staff
+            <Button onClick={handleOpenAddModal} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+              <UserPlus className="w-4 h-4" /> Add Staff
             </Button>
           </div>
         </div>
@@ -181,7 +281,7 @@ export default function StaffSettingsPage() {
               </div>
             ) : filteredStaff.length === 0 ? (
               <div className="py-20 text-center text-slate-400 text-sm">
-                No staff members found matching criteria.
+                No staff members found matching criteria. Click &apos;Add Staff&apos; to create one.
               </div>
             ) : (
               <Table>
@@ -190,6 +290,7 @@ export default function StaffSettingsPage() {
                     <TableHead>Staff Name</TableHead>
                     <TableHead>Email Address</TableHead>
                     <TableHead>System Role</TableHead>
+                    <TableHead>Location Access</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -198,8 +299,19 @@ export default function StaffSettingsPage() {
                   {filteredStaff.map((staff) => (
                     <TableRow key={staff._id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell className="font-semibold text-slate-900">{staff.name}</TableCell>
-                      <TableCell className="text-slate-600">{staff.email || "—"}</TableCell>
+                      <TableCell className="text-slate-600">{staff.email}</TableCell>
                       <TableCell>{getRoleBadge(staff.role)}</TableCell>
+                      <TableCell className="text-xs text-slate-600">
+                        {staff.allLocations !== false ? (
+                          <span className="flex items-center gap-1 text-slate-600">
+                            <MapPin className="w-3 h-3 text-slate-400" /> All Locations
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-blue-600">
+                            <MapPin className="w-3 h-3 text-blue-500" /> {staff.locationIds?.length || 0} Location(s)
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {staff.isActive !== false ? (
                           <span className="flex items-center text-emerald-600 text-xs font-medium">
@@ -213,23 +325,13 @@ export default function StaffSettingsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {staff.email && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleResendInvite(staff._id)}
-                              title="Resend invite email"
-                              className="h-8 w-8 text-slate-500 hover:bg-slate-100"
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                          {staff.role !== "TENANT_OWNER" && (
+                          {staff.role !== "TENANT_OWNER" && (isOwner || staff.role === "STAFF") && (
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDeleteStaff(staff._id, staff.name)}
-                              className="h-8 w-8 text-red-600 hover:bg-red-50"
+                              title="Remove staff member"
+                              className="h-8 w-8 text-red-600 hover:bg-red-50 cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
@@ -244,79 +346,189 @@ export default function StaffSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Invite Staff Modal */}
-        <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        {/* Add Staff Modal */}
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Invite Staff Member</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-600" /> Add Staff Member
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreateStaff} className="space-y-4 py-2">
+
+            {formError && (
+              <div className="p-3 rounded-lg bg-red-50 text-red-600 flex items-center gap-2 border border-red-200 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateStaff} className="space-y-4 py-1">
               <div className="space-y-1">
                 <Label htmlFor="staffName">Full Name *</Label>
                 <Input
                   id="staffName"
                   required
-                  value={inviteForm.name}
-                  onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                  value={staffForm.name}
+                  onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
                   placeholder="e.g. Sarah Jenkins"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="staffEmail">Email Address</Label>
-                  <Input
-                    id="staffEmail"
-                    type="email"
-                    value={inviteForm.email}
-                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                    placeholder="sarah@example.com"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="staffRole">Role</Label>
+              {/* Role Selection */}
+              <div className="space-y-1">
+                <Label htmlFor="staffRole">Role *</Label>
+                {isOwner ? (
                   <select
                     id="staffRole"
-                    value={inviteForm.role}
-                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as any })}
-                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500"
+                    value={staffForm.role}
+                    onChange={(e) =>
+                      setStaffForm({
+                        ...staffForm,
+                        role: e.target.value as "TENANT_MANAGER" | "STAFF",
+                      })
+                    }
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
-                    <option value="STAFF">Front-line Staff</option>
+                    <option value="STAFF">Staff</option>
                     <option value="TENANT_MANAGER">Tenant Manager</option>
                   </select>
-                </div>
+                ) : (
+                  <div className="h-9 flex items-center px-3 rounded-md bg-slate-100 text-slate-700 text-sm font-medium border border-slate-200">
+                    Staff
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="staffPassword">Password (Optional)</Label>
-                  <Input
-                    id="staffPassword"
-                    type="password"
-                    value={inviteForm.password}
-                    onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
-                    placeholder="Min 8 chars"
-                  />
+              {/* Email & Database Duplicate Check */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="staffEmail">Email Address *</Label>
+                  {emailCheckLoading && (
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
+                    </span>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="staffPin">Quick POS PIN (4-6 digits)</Label>
-                  <Input
-                    id="staffPin"
-                    maxLength={6}
-                    value={inviteForm.pin}
-                    onChange={(e) => setInviteForm({ ...inviteForm, pin: e.target.value })}
-                    placeholder="e.g. 1234"
-                  />
-                </div>
+                <Input
+                  id="staffEmail"
+                  type="email"
+                  required
+                  value={staffForm.email}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setStaffForm({ ...staffForm, email: val });
+                    if (emailStatus.checked) {
+                      setEmailStatus({ checked: false, exists: false, message: null });
+                    }
+                  }}
+                  onBlur={() => checkEmailAvailability(staffForm.email)}
+                  placeholder="e.g. sarah@example.com"
+                  className={emailStatus.exists ? "border-red-500 focus-visible:ring-red-400" : ""}
+                />
+                {emailStatus.checked && (
+                  <p
+                    className={`text-xs mt-1 flex items-center gap-1 ${
+                      emailStatus.exists ? "text-red-600 font-medium" : "text-emerald-600"
+                    }`}
+                  >
+                    {emailStatus.exists ? (
+                      <>
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {emailStatus.message}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        {emailStatus.message}
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
 
-              <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
+              {/* Password */}
+              <div className="space-y-1">
+                <Label htmlFor="staffPassword">Password *</Label>
+                <Input
+                  id="staffPassword"
+                  type="password"
+                  required
+                  value={staffForm.password}
+                  onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                  placeholder="Min 8 characters"
+                />
+              </div>
+
+              {/* Location Scope */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">Location Authorization</Label>
+                  <label className="text-xs text-slate-600 flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={staffForm.allLocations}
+                      onChange={(e) =>
+                        setStaffForm({
+                          ...staffForm,
+                          allLocations: e.target.checked,
+                          locationIds: e.target.checked ? [] : staffForm.locationIds,
+                        })
+                      }
+                      className="rounded border-slate-300 text-blue-600 cursor-pointer"
+                    />
+                    <span>Grant access to all branches</span>
+                  </label>
+                </div>
+
+                {!staffForm.allLocations && locations.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-md border border-slate-200 max-h-32 overflow-y-auto">
+                    {locations.map((loc) => {
+                      const isChecked = staffForm.locationIds.includes(loc._id);
+                      return (
+                        <label key={loc._id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setStaffForm((prev) => ({
+                                ...prev,
+                                locationIds: checked
+                                  ? [...prev.locationIds, loc._id]
+                                  : prev.locationIds.filter((id) => id !== loc._id),
+                              }));
+                            }}
+                            className="rounded border-slate-300 text-blue-600 cursor-pointer"
+                          />
+                          <span className="truncate">{loc.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="staffPhone">Phone Number (Optional)</Label>
+                <Input
+                  id="staffPhone"
+                  value={staffForm.phone}
+                  onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
+
+              <DialogFooter className="pt-3">
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="cursor-pointer">
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || emailStatus.exists || emailCheckLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Send Invitation
+                  Add Staff Member
                 </Button>
               </DialogFooter>
             </form>

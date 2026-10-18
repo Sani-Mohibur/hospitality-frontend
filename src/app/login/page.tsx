@@ -63,11 +63,18 @@ function LoginForm() {
           } else {
             router.push("/super-admin");
           }
+        } else if (role === "TENANT_MANAGER" || role === "STAFF") {
+          if (redirect && !redirect.startsWith("/super-admin") && !redirect.startsWith("/account")) {
+            router.push(redirect);
+          } else {
+            router.push("/tenant/dashboard");
+          }
         } else {
+          // Owner
           if (redirect && !redirect.startsWith("/super-admin")) {
             router.push(redirect);
           } else {
-            router.push("/account");
+            router.push("/tenant/dashboard");
           }
         }
       } else {

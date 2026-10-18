@@ -74,6 +74,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Shared & Settings",
     collapsible: true,
+    allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"],
     items: [
       { name: "Inventory", href: "/tenant/inventory", icon: Package },
       { name: "Staff", href: "/tenant/settings/staff", icon: Users, allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"] },
@@ -300,29 +301,33 @@ export function TenantSidebar() {
                   <span>Profile</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    router.push("/account");
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
-                >
-                  <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span>Account</span>
-                </button>
+                {hasRole(["TENANT_OWNER", "SUPER_ADMIN"]) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push("/account");
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+                    >
+                      <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Account</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    router.push("/tenant/settings/subscription");
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
-                >
-                  <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span>Subscription & Billing</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push("/tenant/settings/subscription");
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+                    >
+                      <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Subscription & Billing</span>
+                    </button>
+                  </>
+                )}
 
                 <div className="my-1 border-t border-white/10" />
 

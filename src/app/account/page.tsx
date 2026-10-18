@@ -39,7 +39,7 @@ export default function AccountPage() {
   };
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedRoles={["TENANT_OWNER", "SUPER_ADMIN"]}>
       <div className="min-h-screen bg-ivory text-ink flex flex-col">
         {/* Top Navigation */}
         <AccountHeader onLogout={() => logout()} />
