@@ -21,7 +21,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, Role, Module } from "@/lib/auth-context";
 
 type NavItem = {
@@ -269,12 +269,22 @@ export function TenantSidebar() {
         >
           <div className="overflow-hidden">
             <div className="p-2 bg-slate-800/95 border border-white/10 rounded-xl shadow-lg space-y-1">
-              <div className="px-2.5 py-2 border-b border-white/10">
-                <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                <p className="text-xs text-slate-400 truncate">{user.email || ""}</p>
-                <span className="inline-block text-[10px] text-blue-400 font-semibold tracking-wider uppercase mt-1">
-                  {user.role?.replace("_", " ")}
-                </span>
+              <div className="px-2.5 py-2 border-b border-white/10 flex items-center gap-2.5">
+                <Avatar className="w-8 h-8 border border-white/20 shrink-0">
+                  {user.profileImage?.url && (
+                    <AvatarImage src={user.profileImage.url} alt={user.name} />
+                  )}
+                  <AvatarFallback className="bg-slate-800 text-white font-bold text-[10px]">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email || ""}</p>
+                  <span className="inline-block text-[10px] text-blue-400 font-semibold tracking-wider uppercase mt-0.5">
+                    {user.role?.replace("_", " ")}
+                  </span>
+                </div>
               </div>
 
               <div className="pt-1 space-y-0.5">
@@ -343,6 +353,9 @@ export function TenantSidebar() {
           aria-label="User profile menu"
         >
           <Avatar className="w-9 h-9 border border-white/20 shrink-0">
+            {user.profileImage?.url && (
+              <AvatarImage src={user.profileImage.url} alt={user.name} />
+            )}
             <AvatarFallback className="bg-slate-800 text-white font-bold text-xs">
               {getInitials(user.name)}
             </AvatarFallback>

@@ -16,6 +16,11 @@ export interface User {
   tenantId?: string;
   phone?: string;
   isActive?: boolean;
+  profileImage?: {
+    url?: string;
+    publicId?: string;
+  };
+  avatarUrl?: string;
 }
 
 export interface Subscription {

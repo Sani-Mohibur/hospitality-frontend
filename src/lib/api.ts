@@ -12,7 +12,10 @@ export async function apiFetch(
 ): Promise<Response> {
   const { requireAuth = true, ...customOptions } = options;
   const headers = new Headers(customOptions.headers);
-  headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && customOptions.body instanceof FormData;
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (requireAuth) {
     const token = typeof window !== 'undefined' ? localStorage.getItem("accessToken") : null;

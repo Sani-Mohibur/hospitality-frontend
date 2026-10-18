@@ -27,9 +27,10 @@ export const apiClient = {
   },
 
   async post<T = any>(endpoint: string, body?: any): Promise<{ data: T; meta?: any }> {
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
     const res = await apiFetch(endpoint, {
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : body ? JSON.stringify(body) : undefined,
     });
     const json = await res.json();
     if (!res.ok) {
@@ -39,9 +40,10 @@ export const apiClient = {
   },
 
   async patch<T = any>(endpoint: string, body?: any): Promise<{ data: T; meta?: any }> {
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
     const res = await apiFetch(endpoint, {
       method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : body ? JSON.stringify(body) : undefined,
     });
     const json = await res.json();
     if (!res.ok) {

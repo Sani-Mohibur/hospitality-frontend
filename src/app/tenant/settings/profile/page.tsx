@@ -1,23 +1,38 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
-import { User, Mail, Phone, Shield, Building, Save, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Shield,
+  Building,
+  Save,
+  Loader2,
+  CheckCircle2,
+  Camera,
+  Upload,
+  X,
+} from "lucide-react";
 
 export default function TenantProfilePage() {
   const { user, tenant, refreshUser, isLoading: isAuthLoading } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -25,6 +40,15 @@ export default function TenantProfilePage() {
       setPhone(user.phone || "");
     }
   }, [user]);
+
+  // Clean up blob URL preview on unmount or file change
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const getInitials = (userName?: string) => {
     if (!userName) return "U";
@@ -34,23 +58,83 @@ export default function TenantProfilePage() {
       : userName.slice(0, 2).toUpperCase();
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Invalid image format. Supported formats: JPG, PNG, WebP, GIF.");
+      return;
+    }
+
+    // Validate size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("File size exceeds 5MB limit. Please choose a smaller image.");
+      return;
+    }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleCancelPreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error("Name is required");
+      toast.error("Full name is required");
       return;
     }
 
     setIsSaving(true);
     setSavedSuccess(false);
+
     try {
-      await apiClient.patch("/user/update-profile", {
+      const formData = new FormData();
+      formData.append("data", JSON.stringify({
         name: name.trim(),
         phone: phone.trim(),
-      });
+      }));
+
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+
+      await apiClient.patch("/user/update-profile", formData);
       await refreshUser();
+
+      // Reset file selection
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       setSavedSuccess(true);
-      toast.success("Profile updated successfully");
+      toast.success(
+        selectedFile
+          ? "Profile picture and details updated successfully"
+          : "Profile details updated successfully"
+      );
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
       toast.error(err?.message || "Failed to update profile");
@@ -68,25 +152,79 @@ export default function TenantProfilePage() {
     );
   }
 
+  const currentDisplayImage = previewUrl || user.profileImage?.url;
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Profile</h1>
         <p className="text-sm text-slate-500">
-          Manage your personal information and contact preferences.
+          Manage your personal details, contact preferences, and profile picture.
         </p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Profile Summary Card */}
+        {/* Profile Summary & Avatar Card */}
         <Card className="md:col-span-1 border-slate-200 shadow-sm">
           <CardContent className="pt-6 flex flex-col items-center text-center">
-            <Avatar className="w-20 h-20 border-2 border-slate-200 mb-4 shadow-sm">
-              <AvatarFallback className="bg-slate-900 text-white font-bold text-xl">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-            <h2 className="text-lg font-bold text-slate-900 truncate w-full">{user.name}</h2>
+            {/* Avatar with Camera Overlay */}
+            <div className="relative group mb-4">
+              <Avatar className="w-24 h-24 border-2 border-slate-200 shadow-sm">
+                {currentDisplayImage && (
+                  <AvatarImage src={currentDisplayImage} alt={user.name} />
+                )}
+                <AvatarFallback className="bg-slate-900 text-white font-bold text-2xl">
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Upload Overlay Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSaving}
+                className="absolute bottom-0 right-0 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                title="Upload new profile picture"
+                aria-label="Upload new profile picture"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+
+            {/* Preview indicator if a new image is selected */}
+            {selectedFile && (
+              <div className="mb-3 flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium">
+                <span className="truncate max-w-[120px]">{selectedFile.name}</span>
+                <button
+                  type="button"
+                  onClick={handleCancelPreview}
+                  className="hover:text-blue-900 p-0.5 cursor-pointer rounded-full"
+                  title="Remove selected image"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSaving}
+              className="text-xs text-blue-600 hover:text-blue-700 font-semibold mb-2 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{user.profileImage?.url ? "Change Picture" : "Upload Picture"}</span>
+            </button>
+
+            <h2 className="text-lg font-bold text-slate-900 truncate w-full mt-1">{user.name}</h2>
             <p className="text-xs text-slate-500 font-mono mt-0.5 truncate w-full">{user.email}</p>
 
             <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
@@ -122,7 +260,7 @@ export default function TenantProfilePage() {
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-slate-900">Personal Details</CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Update your display name and contact phone number.
+              Update your display name, contact phone number, and avatar.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -139,6 +277,7 @@ export default function TenantProfilePage() {
                   placeholder="Your full name"
                   required
                   className="text-sm"
+                  disabled={isSaving}
                 />
               </div>
 
@@ -169,8 +308,25 @@ export default function TenantProfilePage() {
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="e.g. +1 (555) 012-3456"
                   className="text-sm"
+                  disabled={isSaving}
                 />
               </div>
+
+              {selectedFile && (
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>New picture selected: <strong>{selectedFile.name}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelPreview}
+                    className="text-blue-600 hover:text-blue-800 text-xs font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
 
               <div className="pt-2 flex items-center justify-between">
                 {savedSuccess ? (
@@ -189,7 +345,7 @@ export default function TenantProfilePage() {
                   {isSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
+                      Saving &amp; Uploading...
                     </>
                   ) : (
                     <>
