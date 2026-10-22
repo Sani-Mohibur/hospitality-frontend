@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Users, Plus, Loader2, AlertCircle, RefreshCw, Trash2, UtensilsCrossed } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface TableItem {
   _id: string;
@@ -49,6 +50,7 @@ function getStatusStyle(status: string = "OPEN") {
 }
 
 export default function TablesPage() {
+  const { currentLocation } = useLocation();
   const [tables, setTables] = useState<TableItem[]>([]);
   const [outlets, setOutlets] = useState<OutletItem[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
@@ -89,7 +91,7 @@ export default function TablesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedOutletId]);
+  }, [selectedOutletId, currentLocation]);
 
   useEffect(() => {
     fetchData();

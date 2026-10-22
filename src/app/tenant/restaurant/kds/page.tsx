@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, Flame, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
+import { RefreshCw, AlertCircle, Loader2, Clock, Flame, CheckCircle } from "lucide-react";
 
 interface KdsItem {
   _id: string;
@@ -44,6 +45,7 @@ function getUrgencyHeader(urgency: string) {
 }
 
 export default function KDSPage() {
+  const { currentLocation } = useLocation();
   const [tickets, setTickets] = useState<KdsTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function KDSPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchQueue();

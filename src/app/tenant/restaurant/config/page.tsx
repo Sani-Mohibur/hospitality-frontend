@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2, Loader2, AlertCircle, RefreshCw, Utensils } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface Category {
   _id: string;
@@ -35,6 +36,7 @@ interface MenuItem {
 }
 
 export default function RestaurantConfigPage() {
+  const { currentLocation } = useLocation();
   const [activeTab, setActiveTab] = useState<"ITEMS" | "CATEGORIES">("ITEMS");
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -76,7 +78,7 @@ export default function RestaurantConfigPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchData();

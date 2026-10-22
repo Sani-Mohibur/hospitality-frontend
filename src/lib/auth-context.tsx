@@ -21,6 +21,8 @@ export interface User {
     publicId?: string;
   };
   avatarUrl?: string;
+  allLocations?: boolean;
+  locationIds?: string[];
 }
 
 export interface Subscription {

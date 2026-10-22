@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bed, DollarSign, ShoppingBag, Users, RefreshCw, Activity, ArrowUpRight, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Bed, DollarSign, ShoppingBag, Users, RefreshCw, Activity, ArrowUpRight, Clock, AlertCircle, Loader2, MapPin } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "@/lib/location-context";
@@ -24,7 +31,13 @@ interface DashboardStats {
 
 export default function TenantDashboardPage() {
   const { tenant, hasModule } = useAuth();
-  const { currentLocation } = useLocation();
+  const {
+    currentLocation,
+    locations,
+    selectLocationId,
+    canAccessAllLocations,
+    isLoadingLocations,
+  } = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,16 +137,46 @@ export default function TenantDashboardPage() {
               Live metrics for {currentLocation?.name || "all locations"}.
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={fetchDashboardData} 
-            disabled={loading}
-            className="gap-2 cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-sm">
+              <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              {isLoadingLocations ? (
+                <span className="text-xs text-slate-400">Loading...</span>
+              ) : locations.length > 0 || canAccessAllLocations ? (
+                <Select
+                  value={currentLocation?._id || ""}
+                  onValueChange={(val) => val && selectLocationId(val)}
+                >
+                  <SelectTrigger className="w-[170px] border-none shadow-none font-medium bg-transparent focus:ring-0 h-auto p-0 text-slate-800 text-xs cursor-pointer">
+                    <SelectValue placeholder="All Branches" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {canAccessAllLocations && (
+                      <SelectItem value="ALL" className="cursor-pointer font-semibold text-blue-700">
+                        🌐 All Locations
+                      </SelectItem>
+                    )}
+                    {locations.map((loc) => (
+                      <SelectItem key={loc._id} value={loc._id} className="cursor-pointer">
+                        {loc.name} {loc.code ? `(${loc.code})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
+            </div>
+
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchDashboardData} 
+              disabled={loading}
+              className="gap-2 cursor-pointer h-8 text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {error && (

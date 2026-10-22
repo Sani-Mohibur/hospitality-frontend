@@ -20,6 +20,7 @@ import {
   LogOut,
   ChevronUp,
   ChevronDown,
+  MapPin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, Role, Module } from "@/lib/auth-context";
@@ -77,6 +78,7 @@ const navGroups: NavGroup[] = [
     allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"],
     items: [
       { name: "Inventory", href: "/tenant/inventory", icon: Package },
+      { name: "Locations", href: "/tenant/settings/locations", icon: MapPin, allowedRoles: ["TENANT_OWNER", "SUPER_ADMIN"] },
       { name: "Staff", href: "/tenant/settings/staff", icon: Users, allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"] },
       { name: "Audit Logs", href: "/tenant/settings/audit-logs", icon: ClipboardList, allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"] },
     ],

@@ -14,8 +14,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PackagePlus, Search, AlertTriangle, Loader2, AlertCircle, RefreshCw, Trash2, SlidersHorizontal } from "lucide-react";
+import { PackagePlus, Search, AlertTriangle, Loader2, AlertCircle, RefreshCw, Trash2, SlidersHorizontal, MapPin } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface InventoryItem {
   _id: string;
@@ -27,6 +28,7 @@ interface InventoryItem {
   unitCost?: number;
   parLevel?: number;
   reorderPoint?: number;
+  locationId?: string;
   isActive?: boolean;
 }
 
@@ -51,6 +53,8 @@ function getStatusBadge(item: InventoryItem) {
 }
 
 export default function InventoryPage() {
+  const { currentLocation, isAllLocations, locations } = useLocation();
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +71,7 @@ export default function InventoryPage() {
     openingQuantity: 10,
     reorderPoint: 5,
     unitCost: "0.00",
+    locationId: "",
   });
 
   // Adjust Stock Modal
@@ -91,7 +96,7 @@ export default function InventoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchInventory();
@@ -119,9 +124,30 @@ export default function InventoryPage() {
     });
   }, [items, search, selectedCategory]);
 
+  const handleOpenCreateModal = () => {
+    const defaultLoc = currentLocation && currentLocation._id !== "ALL" ? currentLocation._id : (locations[0]?._id || "");
+    setCreateForm({
+      name: "",
+      sku: "",
+      category: "Beverages",
+      unitOfMeasure: "units",
+      openingQuantity: 10,
+      reorderPoint: 5,
+      unitCost: "0.00",
+      locationId: defaultLoc,
+    });
+    setIsCreateOpen(true);
+  };
+
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.name.trim() || !createForm.sku.trim()) return;
+
+    const targetLocationId = createForm.locationId || (currentLocation && currentLocation._id !== "ALL" ? currentLocation._id : locations[0]?._id);
+    if (!targetLocationId) {
+      alert("Please select a location for this inventory item.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -134,18 +160,10 @@ export default function InventoryPage() {
         openingQuantity: Number(createForm.openingQuantity) || 0,
         reorderPoint: Number(createForm.reorderPoint) || 5,
         unitCost: isNaN(costMinor) || costMinor < 0 ? undefined : costMinor,
+        locationId: targetLocationId,
       });
 
       setIsCreateOpen(false);
-      setCreateForm({
-        name: "",
-        sku: "",
-        category: "Beverages",
-        unitOfMeasure: "units",
-        openingQuantity: 10,
-        reorderPoint: 5,
-        unitCost: "0.00",
-      });
       fetchInventory();
     } catch (err: any) {
       alert(err?.message || "Failed to create inventory item");
@@ -191,13 +209,20 @@ export default function InventoryPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Centralized Inventory</h1>
-          <p className="text-sm text-slate-500">Track and manage stock levels across hotel and dining outlets.</p>
+          <p className="text-sm text-slate-500">
+            Track and manage stock levels across hotel and dining outlets.
+            {currentLocation && (
+              <span className="font-semibold text-blue-600 ml-1">
+                (Showing: {currentLocation.name})
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fetchInventory()} disabled={isLoading} className="gap-2 cursor-pointer">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+          <Button onClick={handleOpenCreateModal} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
             <PackagePlus className="w-4 h-4" /> Add Stock Item
           </Button>
         </div>
@@ -317,6 +342,25 @@ export default function InventoryPage() {
             <DialogTitle>Add New Stock Item</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateItem} className="space-y-4 py-2">
+            {isAllLocations && locations.length > 0 && (
+              <div className="space-y-1">
+                <Label htmlFor="itemLocation">Target Branch Location *</Label>
+                <select
+                  id="itemLocation"
+                  value={createForm.locationId}
+                  onChange={(e) => setCreateForm({ ...createForm, locationId: e.target.value })}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  required
+                >
+                  {locations.map((loc) => (
+                    <option key={loc._id} value={loc._id}>
+                      {loc.name} {loc.code ? `(${loc.code})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="sku">SKU Code *</Label>

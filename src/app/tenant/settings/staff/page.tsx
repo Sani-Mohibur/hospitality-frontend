@@ -18,10 +18,12 @@ import {
 import { Search, UserPlus, Loader2, AlertCircle, RefreshCw, Trash2, MapPin, CheckCircle2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { useLocation } from "@/lib/location-context";
 
 interface TenantLocation {
   _id: string;
   name: string;
+  code?: string;
 }
 
 interface StaffMember {
@@ -31,7 +33,7 @@ interface StaffMember {
   phone?: string;
   role: "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
   allLocations?: boolean;
-  locationIds?: string[];
+  locationIds?: any[];
   isActive?: boolean;
   createdAt?: string;
 }
@@ -51,10 +53,10 @@ function getRoleBadge(role: string) {
 
 export default function StaffSettingsPage() {
   const { user: currentUser } = useAuth();
+  const { currentLocation, isAllLocations, locations } = useLocation();
   const isOwner = currentUser?.role === "TENANT_OWNER" || currentUser?.role === "SUPER_ADMIN";
 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [locations, setLocations] = useState<TenantLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -78,7 +80,7 @@ export default function StaffSettingsPage() {
     phone: "",
     password: "",
     role: "STAFF" as "TENANT_MANAGER" | "STAFF",
-    allLocations: true,
+    allLocations: false,
     locationIds: [] as string[],
   });
 
@@ -93,21 +95,11 @@ export default function StaffSettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  const fetchLocations = useCallback(async () => {
-    try {
-      const locsRes = await apiClient.get<TenantLocation[]>("/location");
-      if (Array.isArray(locsRes.data)) setLocations(locsRes.data);
-    } catch (err) {
-      console.error("Could not load locations", err);
-    }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchStaff();
-    fetchLocations();
-  }, [fetchStaff, fetchLocations]);
+  }, [fetchStaff]);
 
   const filteredStaff = useMemo(() => {
     return staffList.filter((s) => {
@@ -153,14 +145,35 @@ export default function StaffSettingsPage() {
   const handleOpenAddModal = () => {
     setFormError(null);
     setEmailStatus({ checked: false, exists: false, message: null });
+
+    // Determine default location from dashboard active selection
+    let defaultLocations: string[] = [];
+    let defaultAll = false;
+
+    if (isOwner) {
+      if (isAllLocations || !currentLocation || currentLocation._id === "ALL") {
+        defaultAll = true;
+      } else {
+        defaultLocations = [currentLocation._id];
+      }
+    } else {
+      // Manager is strictly restricted to assigned branches
+      defaultAll = false;
+      if (currentLocation && currentLocation._id !== "ALL" && locations.some((l) => l._id === currentLocation._id)) {
+        defaultLocations = [currentLocation._id];
+      } else if (locations.length > 0) {
+        defaultLocations = [locations[0]._id];
+      }
+    }
+
     setStaffForm({
       name: "",
       email: "",
       phone: "",
       password: "",
       role: "STAFF",
-      allLocations: true,
-      locationIds: [],
+      allLocations: defaultAll,
+      locationIds: defaultLocations,
     });
     setIsAddOpen(true);
   };
@@ -181,6 +194,21 @@ export default function StaffSettingsPage() {
 
     if (!staffForm.password || staffForm.password.length < 8) {
       setFormError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (!staffForm.allLocations && staffForm.locationIds.length === 0) {
+      setFormError("Please select at least one branch for this staff member.");
+      return;
+    }
+
+    if (!isOwner && staffForm.allLocations) {
+      setFormError("Managers cannot assign staff to all locations.");
+      return;
+    }
+
+    if (!isOwner && staffForm.role === "TENANT_MANAGER") {
+      setFormError("Only the Tenant Owner can create managers.");
       return;
     }
 
@@ -209,7 +237,7 @@ export default function StaffSettingsPage() {
         password: staffForm.password,
         phone: staffForm.phone.trim() || undefined,
         role: staffForm.role,
-        allLocations: staffForm.allLocations,
+        allLocations: isOwner ? staffForm.allLocations : false,
         locationIds: staffForm.allLocations ? [] : staffForm.locationIds,
         sendInvite: false,
       });
@@ -241,6 +269,11 @@ export default function StaffSettingsPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staff Management</h1>
             <p className="text-sm text-slate-500">
               Directly add and manage team members and managers across your locations.
+              {currentLocation && (
+                <span className="font-semibold text-blue-600 ml-1">
+                  (Showing: {currentLocation.name})
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -281,7 +314,7 @@ export default function StaffSettingsPage() {
               </div>
             ) : filteredStaff.length === 0 ? (
               <div className="py-20 text-center text-slate-400 text-sm">
-                No staff members found matching criteria. Click &apos;Add Staff&apos; to create one.
+                No staff members found for the current filter/location. Click &apos;Add Staff&apos; to create one.
               </div>
             ) : (
               <Table>
@@ -303,11 +336,11 @@ export default function StaffSettingsPage() {
                       <TableCell>{getRoleBadge(staff.role)}</TableCell>
                       <TableCell className="text-xs text-slate-600">
                         {staff.allLocations !== false ? (
-                          <span className="flex items-center gap-1 text-slate-600">
+                          <span className="flex items-center gap-1 text-slate-600 font-medium">
                             <MapPin className="w-3 h-3 text-slate-400" /> All Locations
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-blue-600">
+                          <span className="flex items-center gap-1 text-blue-600 font-medium">
                             <MapPin className="w-3 h-3 text-blue-500" /> {staff.locationIds?.length || 0} Location(s)
                           </span>
                         )}
@@ -394,7 +427,7 @@ export default function StaffSettingsPage() {
                   </select>
                 ) : (
                   <div className="h-9 flex items-center px-3 rounded-md bg-slate-100 text-slate-700 text-sm font-medium border border-slate-200">
-                    Staff
+                    Staff (Only Owner can create managers)
                   </div>
                 )}
               </div>
@@ -462,48 +495,60 @@ export default function StaffSettingsPage() {
               {/* Location Scope */}
               <div className="space-y-2 pt-1 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-slate-700">Location Authorization</Label>
-                  <label className="text-xs text-slate-600 flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={staffForm.allLocations}
-                      onChange={(e) =>
-                        setStaffForm({
-                          ...staffForm,
-                          allLocations: e.target.checked,
-                          locationIds: e.target.checked ? [] : staffForm.locationIds,
-                        })
-                      }
-                      className="rounded border-slate-300 text-blue-600 cursor-pointer"
-                    />
-                    <span>Grant access to all branches</span>
-                  </label>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Location Assignment</Label>
+                    {currentLocation && currentLocation._id !== "ALL" && (
+                      <p className="text-[11px] text-slate-500">
+                        Defaulted to active branch: <span className="font-medium text-slate-700">{currentLocation.name}</span>
+                      </p>
+                    )}
+                  </div>
+                  {isOwner && (
+                    <label className="text-xs text-slate-600 flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={staffForm.allLocations}
+                        onChange={(e) =>
+                          setStaffForm({
+                            ...staffForm,
+                            allLocations: e.target.checked,
+                            locationIds: e.target.checked ? [] : staffForm.locationIds,
+                          })
+                        }
+                        className="rounded border-slate-300 text-blue-600 cursor-pointer"
+                      />
+                      <span>All branches</span>
+                    </label>
+                  )}
                 </div>
 
-                {!staffForm.allLocations && locations.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-md border border-slate-200 max-h-32 overflow-y-auto">
-                    {locations.map((loc) => {
-                      const isChecked = staffForm.locationIds.includes(loc._id);
-                      return (
-                        <label key={loc._id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setStaffForm((prev) => ({
-                                ...prev,
-                                locationIds: checked
-                                  ? [...prev.locationIds, loc._id]
-                                  : prev.locationIds.filter((id) => id !== loc._id),
-                              }));
-                            }}
-                            className="rounded border-slate-300 text-blue-600 cursor-pointer"
-                          />
-                          <span className="truncate">{loc.name}</span>
-                        </label>
-                      );
-                    })}
+                {!staffForm.allLocations && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-slate-500">Select permitted branches:</p>
+                    <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-md border border-slate-200 max-h-32 overflow-y-auto">
+                      {locations.map((loc) => {
+                        const isChecked = staffForm.locationIds.includes(loc._id);
+                        return (
+                          <label key={loc._id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setStaffForm((prev) => ({
+                                  ...prev,
+                                  locationIds: checked
+                                    ? [...prev.locationIds, loc._id]
+                                    : prev.locationIds.filter((id) => id !== loc._id),
+                                }));
+                              }}
+                              className="rounded border-slate-300 text-blue-600 cursor-pointer"
+                            />
+                            <span className="truncate">{loc.name} {loc.code ? `(${loc.code})` : ""}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

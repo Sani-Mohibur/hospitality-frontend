@@ -12,28 +12,37 @@ import { useLocation } from "@/lib/location-context";
 import { useRouter } from "next/navigation";
 
 export function TenantTopbar() {
-  const { locations, currentLocation, setCurrentLocation, isLoadingLocations } = useLocation();
+  const {
+    locations,
+    currentLocation,
+    selectLocationId,
+    canAccessAllLocations,
+    isAllLocations,
+    isLoadingLocations,
+  } = useLocation();
   const router = useRouter();
 
   return (
     <header className="h-16 bg-white border-b flex items-center justify-between px-6 shadow-sm shrink-0">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-          <MapPin className="w-4 h-4 text-blue-600" />
+          <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
           {isLoadingLocations ? (
             <span className="text-xs text-slate-400">Loading branches...</span>
-          ) : locations.length > 0 ? (
+          ) : locations.length > 0 || canAccessAllLocations ? (
             <Select
               value={currentLocation?._id || ""}
-              onValueChange={(val) => {
-                const found = locations.find((l) => l._id === val);
-                if (found) setCurrentLocation(found);
-              }}
+              onValueChange={(val) => val && selectLocationId(val)}
             >
-              <SelectTrigger className="w-[200px] border-none shadow-none font-medium bg-transparent focus:ring-0 h-auto p-0 text-slate-800 text-sm">
+              <SelectTrigger className="w-[220px] border-none shadow-none font-medium bg-transparent focus:ring-0 h-auto p-0 text-slate-800 text-sm cursor-pointer">
                 <SelectValue placeholder="Select Location" />
               </SelectTrigger>
               <SelectContent>
+                {canAccessAllLocations && (
+                  <SelectItem value="ALL" className="cursor-pointer font-semibold text-blue-700 bg-blue-50/50">
+                    🌐 All Locations
+                  </SelectItem>
+                )}
                 {locations.map((loc) => (
                   <SelectItem key={loc._id} value={loc._id} className="cursor-pointer">
                     {loc.name} {loc.code ? `(${loc.code})` : ""}
@@ -46,9 +55,14 @@ export function TenantTopbar() {
           )}
         </div>
 
-        {currentLocation?.businessDate && (
+        {!isAllLocations && currentLocation?.businessDate && (
           <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100">
             Date: {currentLocation.businessDate}
+          </span>
+        )}
+        {isAllLocations && (
+          <span className="text-xs font-medium bg-amber-50 text-amber-800 px-2.5 py-1 rounded-full border border-amber-200">
+            Multi-branch View
           </span>
         )}
       </div>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Search, Utensils, Send, Loader2, AlertCircle, Plus, Minus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface OutletItem {
   _id: string;
@@ -41,6 +42,7 @@ interface CartEntry {
 }
 
 export default function POSPage() {
+  const { currentLocation } = useLocation();
   const [outlets, setOutlets] = useState<OutletItem[]>([]);
   const [categories, setCategories] = useState<MenuCategoryItem[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -82,7 +84,7 @@ export default function POSPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedOutletId]);
+  }, [selectedOutletId, currentLocation]);
 
   useEffect(() => {
     fetchPosData();

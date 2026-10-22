@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface AuditLogItem {
   _id: string;
@@ -34,6 +35,7 @@ interface AuditLogItem {
 }
 
 export default function AuditLogsPage() {
+  const { currentLocation } = useLocation();
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export default function AuditLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchLogs();
@@ -78,7 +80,14 @@ export default function AuditLogsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tenant Audit Trail</h1>
-            <p className="text-sm text-slate-500">Security, permission modifications, and operational history.</p>
+            <p className="text-sm text-slate-500">
+              Security, permission modifications, and operational history.
+              {currentLocation && (
+                <span className="font-semibold text-blue-600 ml-1">
+                  (Scope: {currentLocation.name})
+                </span>
+              )}
+            </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => fetchLogs()} disabled={isLoading} className="gap-2">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { CreditCard, PlusCircle, CheckCircle2, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface FolioSummary {
   _id: string;
@@ -46,6 +47,7 @@ interface FolioDetail {
 }
 
 export default function FoliosPage() {
+  const { currentLocation } = useLocation();
   const [folios, setFolios] = useState<FolioSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [folioDetail, setFolioDetail] = useState<FolioDetail | null>(null);
@@ -76,15 +78,20 @@ export default function FoliosPage() {
       const res = await apiClient.get<FolioSummary[]>("/folio");
       const list = Array.isArray(res.data) ? res.data : [];
       setFolios(list);
-      if (list.length > 0 && !selectedId) {
-        setSelectedId(list[0]._id);
+      if (list.length > 0) {
+        if (!selectedId || !list.some((f) => f._id === selectedId)) {
+          setSelectedId(list[0]._id);
+        }
+      } else {
+        setSelectedId(null);
+        setFolioDetail(null);
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load folios.");
     } finally {
       setIsLoadingList(false);
     }
-  }, [selectedId]);
+  }, [selectedId, currentLocation]);
 
   const fetchFolioDetail = useCallback(async (id: string) => {
     setIsLoadingDetail(true);

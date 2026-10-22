@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Edit2, Plus, Trash2, Loader2, AlertCircle, RefreshCw, DoorOpen } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
 
 interface RoomCategory {
   _id: string;
@@ -42,6 +43,7 @@ interface Room {
 }
 
 export default function HospitalityConfigPage() {
+  const { currentLocation } = useLocation();
   const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("ALL");
@@ -85,7 +87,7 @@ export default function HospitalityConfigPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   useEffect(() => {
     fetchData();
