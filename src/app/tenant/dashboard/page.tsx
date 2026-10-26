@@ -8,7 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { useLocation } from "@/lib/location-context";
+import { useLocation, getLocationDisplayName } from "@/lib/location-context";
 import { formatDistanceToNow, format, subDays } from "date-fns";
 import Link from "next/link";
 
@@ -19,6 +19,7 @@ interface DashboardStats {
   staffCount: number;
   occupancyPct?: number;
   recentOrders: Array<{ _id: string; orderNumber?: string; status: string; totals?: { totalMinor?: number }; createdAt: string }>;
+  recentReservations: Array<any>;
   recentActivities: Array<{ _id: string; action: string; entity: string; details?: any; createdAt: string; user?: { name: string } }>;
 }
 
@@ -35,8 +36,27 @@ export default function TenantDashboardPage() {
     staffCount: 0,
     occupancyPct: 0,
     recentOrders: [],
+    recentReservations: [],
     recentActivities: [],
   });
+
+  const isHospitalityScope =
+    currentLocation?._id === "ALL_HOSPITALITY" ||
+    currentLocation?.branchType === "HOSPITALITY" ||
+    (Boolean(currentLocation?.hasRooms) && currentLocation?._id !== "ALL") ||
+    (currentLocation?._id === "ALL" && hasModule("HOSPITALITY") && !hasModule("RESTAURANT"));
+
+  const isRestaurantScope =
+    currentLocation?._id === "ALL_RESTAURANT" ||
+    currentLocation?.branchType === "RESTAURANT" ||
+    (Boolean(currentLocation) &&
+      currentLocation?._id !== "ALL" &&
+      !currentLocation?.hasRooms &&
+      currentLocation?.branchType !== "HOSPITALITY") ||
+    (currentLocation?._id === "ALL" && hasModule("RESTAURANT") && !hasModule("HOSPITALITY"));
+
+  const isHospitalityOnly = isHospitalityScope && !isRestaurantScope;
+  const isRestaurantOnly = isRestaurantScope && !isHospitalityScope;
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -59,8 +79,16 @@ export default function TenantDashboardPage() {
 
       if (reportRes.status === "fulfilled" && reportRes.value?.data) {
         const d = reportRes.value.data;
-        totalRevenue = (d.totalRevenue || 0) / 100;
-        occupancyPct = d.occupancyPct || 0;
+        if (isHospitalityOnly) {
+          totalRevenue = (d.rooms?.roomRevenueMinor || 0) / 100;
+          occupancyPct = d.rooms?.occupancyPct || 0;
+        } else if (isRestaurantOnly) {
+          totalRevenue = (d.fnb?.netRevenueMinor || 0) / 100;
+          occupancyPct = 0;
+        } else {
+          totalRevenue = (d.crossModule?.totalRevenueMinor ?? ((d.rooms?.roomRevenueMinor || 0) + (d.fnb?.netRevenueMinor || 0))) / 100;
+          occupancyPct = d.rooms?.occupancyPct || 0;
+        }
       }
 
       let activeOrders = 0;
@@ -69,7 +97,7 @@ export default function TenantDashboardPage() {
         const orderList = Array.isArray(ordersRes.value.data) ? ordersRes.value.data : [];
         recentOrders = orderList.slice(0, 5);
         activeOrders = orderList.filter((o: any) => o.status !== "CLOSED" && o.status !== "VOIDED").length;
-        if (totalRevenue === 0) {
+        if (totalRevenue === 0 && (isRestaurantOnly || (!isHospitalityOnly && !isRestaurantOnly))) {
           totalRevenue = orderList.reduce((sum: number, o: any) => sum + (o.totals?.totalMinor || 0), 0) / 100;
         }
       }
@@ -81,8 +109,10 @@ export default function TenantDashboardPage() {
       }
 
       let todayCheckins = 0;
+      let recentReservations: any[] = [];
       if (reservationsRes.status === "fulfilled" && reservationsRes.value?.data) {
         const resList = Array.isArray(reservationsRes.value.data) ? reservationsRes.value.data : [];
+        recentReservations = resList.slice(0, 5);
         todayCheckins = resList.filter((r: any) => r.status === "CONFIRMED" || r.status === "CHECKED_IN").length;
       }
 
@@ -98,6 +128,7 @@ export default function TenantDashboardPage() {
         staffCount,
         occupancyPct,
         recentOrders,
+        recentReservations,
         recentActivities,
       });
     } catch (err: unknown) {
@@ -106,11 +137,20 @@ export default function TenantDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [hasModule, currentLocation]);
+  }, [hasModule, currentLocation, isHospitalityOnly, isRestaurantOnly]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const locationSubtitle =
+    currentLocation?._id === "ALL"
+      ? "all locations"
+      : currentLocation?._id === "ALL_HOSPITALITY"
+      ? "all Hospitality locations"
+      : currentLocation?._id === "ALL_RESTAURANT"
+      ? "all Restaurant locations"
+      : getLocationDisplayName(currentLocation);
 
   return (
     <RoleGuard allowedRoles={["TENANT_OWNER", "TENANT_MANAGER", "STAFF"]}>
@@ -121,7 +161,7 @@ export default function TenantDashboardPage() {
               {tenant?.name || "Workspace"} Operations
             </h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Live metrics for {currentLocation?.name || "all locations"}.
+              Live metrics for {locationSubtitle}.
             </p>
           </div>
           <Button 
@@ -150,7 +190,9 @@ export default function TenantDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="shadow-sm border-slate-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Total Net Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600">
+                {isHospitalityOnly ? "Hospitality Net Revenue" : isRestaurantOnly ? "Restaurant Net Sales" : "Total Net Revenue"}
+              </CardTitle>
               <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
                 <DollarSign className="h-4 w-4" />
               </div>
@@ -159,36 +201,48 @@ export default function TenantDashboardPage() {
               <div className="text-2xl font-bold text-slate-900">
                 ${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Rolling 30-day operating gross</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Active Arrivals / Stays</CardTitle>
-              <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                <Bed className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.todayCheckins}</div>
               <p className="text-xs text-slate-500 mt-1">
-                {hasModule("HOSPITALITY") ? "Current active/confirmed stays" : "Hospitality not active"}
+                {isHospitalityOnly ? "Hospitality room & folio revenue (30 days)" :
+                 isRestaurantOnly ? "Restaurant F&B sales (30 days)" :
+                 "Rolling 30-day operating gross"}
               </p>
             </CardContent>
           </Card>
           
           <Card className="shadow-sm border-slate-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Active POS Orders</CardTitle>
-              <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-                <ShoppingBag className="h-4 w-4" />
+              <CardTitle className="text-sm font-medium text-slate-600">
+                {isRestaurantOnly ? "Restaurant Orders" : "Active Arrivals / Stays"}
+              </CardTitle>
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                {isRestaurantOnly ? <ShoppingBag className="h-4 w-4" /> : <Bed className="h-4 w-4" />}
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.activeOrders}</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {isRestaurantOnly ? stats.recentOrders.length : stats.todayCheckins}
+              </div>
               <p className="text-xs text-slate-500 mt-1">
-                {hasModule("RESTAURANT") ? "Open tickets in progress" : "Restaurant not active"}
+                {isRestaurantOnly ? "Recent ticket activity" : "Current active/confirmed stays"}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                {isHospitalityOnly ? "Room Occupancy" : "Active POS Orders"}
+              </CardTitle>
+              <div className={`p-2 rounded-lg ${isHospitalityOnly ? "bg-indigo-50 text-indigo-600" : "bg-purple-50 text-purple-600"}`}>
+                {isHospitalityOnly ? <Activity className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-900">
+                {isHospitalityOnly ? `${stats.occupancyPct || 0}%` : stats.activeOrders}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {isHospitalityOnly ? "30-day average room occupancy" : "Open tickets in progress"}
               </p>
             </CardContent>
           </Card>
@@ -209,65 +263,135 @@ export default function TenantDashboardPage() {
         
         {/* Content Rows */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-          {/* Recent Orders / Hospitality Activity */}
+          {/* Recent Orders or Hospitality Activity */}
           <Card className="col-span-4 shadow-sm border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-lg">Recent Outlet & POS Orders</CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Live transactions from the restaurant and bar outlets.</p>
-              </div>
-              {hasModule("RESTAURANT") && (
-                <Link
-                  href="/tenant/restaurant/pos"
-                  className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-blue-600" })}
-                >
-                  Open POS <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-                </Link>
-              )}
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center h-48">
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-                </div>
-              ) : stats.recentOrders.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {stats.recentOrders.map((order) => (
-                    <div key={order._id} className="py-3 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-slate-800">
-                            Order #{order.orderNumber || order._id.slice(-6).toUpperCase()}
-                          </span>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-[10px] ${
-                              order.status === 'CLOSED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                              'bg-slate-50 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {order.status}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {order.createdAt ? formatDistanceToNow(new Date(order.createdAt), { addSuffix: true }) : ""}
-                        </p>
-                      </div>
-                      <div className="font-bold text-sm text-slate-900">
-                        ${((order.totals?.totalMinor || 0) / 100).toFixed(2)}
-                      </div>
+            {isHospitalityOnly ? (
+              <>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="text-lg">Recent Bookings & Arrivals</CardTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">Live reservations and check-in status.</p>
+                  </div>
+                  {hasModule("HOSPITALITY") && (
+                    <Link
+                      href="/tenant/hospitality/reservations"
+                      className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-blue-600" })}
+                    >
+                      View Reservations <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+                    </Link>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-48">
+                      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
-                  <ShoppingBag className="w-8 h-8 mb-2 opacity-40" />
-                  <p className="text-sm font-medium">No recent orders recorded.</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Orders taken at the POS will appear here.</p>
-                </div>
-              )}
-            </CardContent>
+                  ) : stats.recentReservations.length > 0 ? (
+                    <div className="divide-y divide-slate-100">
+                      {stats.recentReservations.map((res: any) => {
+                        const guestName = res.bookerGuestId
+                          ? `${res.bookerGuestId.firstName || ""} ${res.bookerGuestId.lastName || ""}`.trim()
+                          : "Guest";
+                        return (
+                          <div key={res._id} className="py-3 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-slate-800">
+                                  #{res.confirmationNumber || res._id.slice(-6).toUpperCase()} • {guestName}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] ${
+                                    res.status === 'CHECKED_IN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                    res.status === 'CONFIRMED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                    res.status === 'CHECKED_OUT' ? 'bg-slate-50 text-slate-700 border-slate-200' :
+                                    'bg-amber-50 text-amber-700 border-amber-200'
+                                  }`}
+                                >
+                                  {res.status}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                Arrival: {res.arrivalDate} • Departure: {res.departureDate}
+                              </p>
+                            </div>
+                            <div className="font-bold text-sm text-slate-900">
+                              ${((res.estimatedTotalMinor || 0) / 100).toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
+                      <Bed className="w-8 h-8 mb-2 opacity-40" />
+                      <p className="text-sm font-medium">No recent bookings recorded.</p>
+                      <p className="text-xs text-slate-500 mt-0.5">New reservations will appear here.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </>
+            ) : (
+              <>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="text-lg">Recent Outlet & POS Orders</CardTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">Live transactions from the restaurant and bar outlets.</p>
+                  </div>
+                  {hasModule("RESTAURANT") && (
+                    <Link
+                      href="/tenant/restaurant/pos"
+                      className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-blue-600" })}
+                    >
+                      Open POS <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
+                    </Link>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-48">
+                      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                    </div>
+                  ) : stats.recentOrders.length > 0 ? (
+                    <div className="divide-y divide-slate-100">
+                      {stats.recentOrders.map((order) => (
+                        <div key={order._id} className="py-3 flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-slate-800">
+                                Order #{order.orderNumber || order._id.slice(-6).toUpperCase()}
+                              </span>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[10px] ${
+                                  order.status === 'CLOSED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                {order.status}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {order.createdAt ? formatDistanceToNow(new Date(order.createdAt), { addSuffix: true }) : ""}
+                            </p>
+                          </div>
+                          <div className="font-bold text-sm text-slate-900">
+                            ${((order.totals?.totalMinor || 0) / 100).toFixed(2)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
+                      <ShoppingBag className="w-8 h-8 mb-2 opacity-40" />
+                      <p className="text-sm font-medium">No recent orders recorded.</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Orders taken at the POS will appear here.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </>
+            )}
           </Card>
 
           {/* Activity Feed */}

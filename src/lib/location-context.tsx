@@ -33,6 +33,34 @@ export const ALL_LOCATIONS_OBJECT: TenantLocation = {
   code: "ALL",
 };
 
+export const ALL_LOCATIONS_HOSPITALITY_ID = "ALL_HOSPITALITY";
+export const ALL_LOCATIONS_HOSPITALITY_OBJECT: TenantLocation = {
+  _id: ALL_LOCATIONS_HOSPITALITY_ID,
+  name: "All Locations · Hospitality",
+  code: "ALL_HOSP",
+  branchType: "HOSPITALITY",
+};
+
+export const ALL_LOCATIONS_RESTAURANT_ID = "ALL_RESTAURANT";
+export const ALL_LOCATIONS_RESTAURANT_OBJECT: TenantLocation = {
+  _id: ALL_LOCATIONS_RESTAURANT_ID,
+  name: "All Locations · Restaurant",
+  code: "ALL_REST",
+  branchType: "RESTAURANT",
+};
+
+export function getLocationDisplayName(loc: TenantLocation | null | undefined): string {
+  if (!loc) return "Select Location";
+  if (loc._id === ALL_LOCATIONS_ID) return "All Locations";
+  if (loc._id === ALL_LOCATIONS_HOSPITALITY_ID) return "All Locations · Hospitality";
+  if (loc._id === ALL_LOCATIONS_RESTAURANT_ID) return "All Locations · Restaurant";
+  const typeLabel =
+    loc.branchType === "HOSPITALITY" || (!loc.branchType && loc.hasRooms)
+      ? "Hospitality"
+      : "Restaurant";
+  return `${loc.name} · ${typeLabel}`;
+}
+
 interface LocationContextType {
   locations: TenantLocation[];
   currentLocation: TenantLocation | null;
@@ -77,6 +105,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         } else if (list.length > 0) {
           selected = list[0];
         }
+      } else if (savedId === ALL_LOCATIONS_HOSPITALITY_ID) {
+        if (canAccessAllLocations) {
+          selected = ALL_LOCATIONS_HOSPITALITY_OBJECT;
+        } else if (list.length > 0) {
+          selected = list[0];
+        }
+      } else if (savedId === ALL_LOCATIONS_RESTAURANT_ID) {
+        if (canAccessAllLocations) {
+          selected = ALL_LOCATIONS_RESTAURANT_OBJECT;
+        } else if (list.length > 0) {
+          selected = list[0];
+        }
       } else if (savedId) {
         selected = list.find((l) => l._id === savedId) || null;
         if (!selected && list.length > 0) {
@@ -111,6 +151,24 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (loc._id === ALL_LOCATIONS_HOSPITALITY_ID) {
+      if (canAccessAllLocations) {
+        setCurrentLocationState(ALL_LOCATIONS_HOSPITALITY_OBJECT);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("activeLocationId", ALL_LOCATIONS_HOSPITALITY_ID);
+        }
+      }
+      return;
+    }
+    if (loc._id === ALL_LOCATIONS_RESTAURANT_ID) {
+      if (canAccessAllLocations) {
+        setCurrentLocationState(ALL_LOCATIONS_RESTAURANT_OBJECT);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("activeLocationId", ALL_LOCATIONS_RESTAURANT_ID);
+        }
+      }
+      return;
+    }
 
     setCurrentLocationState(loc);
     if (typeof window !== "undefined") {
@@ -126,13 +184,28 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+    if (locationId === ALL_LOCATIONS_HOSPITALITY_ID) {
+      if (canAccessAllLocations) {
+        setCurrentLocation(ALL_LOCATIONS_HOSPITALITY_OBJECT);
+      }
+      return;
+    }
+    if (locationId === ALL_LOCATIONS_RESTAURANT_ID) {
+      if (canAccessAllLocations) {
+        setCurrentLocation(ALL_LOCATIONS_RESTAURANT_OBJECT);
+      }
+      return;
+    }
     const found = locations.find((l) => l._id === locationId);
     if (found) {
       setCurrentLocation(found);
     }
   };
 
-  const isAllLocations = currentLocation?._id === ALL_LOCATIONS_ID;
+  const isAllLocations =
+    currentLocation?._id === ALL_LOCATIONS_ID ||
+    currentLocation?._id === ALL_LOCATIONS_HOSPITALITY_ID ||
+    currentLocation?._id === ALL_LOCATIONS_RESTAURANT_ID;
 
   return (
     <LocationContext.Provider
