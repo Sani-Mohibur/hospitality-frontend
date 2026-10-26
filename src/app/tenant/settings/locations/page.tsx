@@ -30,6 +30,7 @@ import {
   Building,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { useLocation, TenantLocation } from "@/lib/location-context";
 
 interface ExtendedLocation extends TenantLocation {
@@ -47,12 +48,35 @@ interface ExtendedLocation extends TenantLocation {
 }
 
 export default function LocationsSettingsPage() {
+  const { tenant } = useAuth();
   const { refreshLocations } = useLocation();
 
   const [locationsList, setLocationsList] = useState<ExtendedLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  // Determine available branch types based on tenant's active subscriptions
+  const availableBranchTypes = useMemo(() => {
+    const types: { label: string; value: "HOSPITALITY" | "RESTAURANT" }[] = [];
+    const isHosp = tenant?.subscribedModules?.includes("HOSPITALITY") ?? false;
+    const isRest = tenant?.subscribedModules?.includes("RESTAURANT") ?? false;
+
+    if (isHosp) {
+      types.push({ label: "Hospitality", value: "HOSPITALITY" });
+    }
+    if (isRest) {
+      types.push({ label: "Restaurant", value: "RESTAURANT" });
+    }
+    // Fallback if tenant subscriptions are not yet loaded or empty
+    if (types.length === 0) {
+      types.push(
+        { label: "Hospitality", value: "HOSPITALITY" },
+        { label: "Restaurant", value: "RESTAURANT" }
+      );
+    }
+    return types;
+  }, [tenant?.subscribedModules]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,9 +95,7 @@ export default function LocationsSettingsPage() {
     latitude: "",
     longitude: "",
     mapUrl: "",
-    checkInTime: "15:00",
-    checkOutTime: "11:00",
-    invoicePrefix: "INV-",
+    branchType: "",
   });
 
   const fetchLocationsData = useCallback(async () => {
@@ -108,6 +130,7 @@ export default function LocationsSettingsPage() {
   const handleOpenAdd = () => {
     setEditingLocation(null);
     setFormError(null);
+    const defaultBranchType = availableBranchTypes.length === 1 ? availableBranchTypes[0].value : "";
     setFormData({
       name: "",
       code: "",
@@ -119,9 +142,7 @@ export default function LocationsSettingsPage() {
       latitude: "",
       longitude: "",
       mapUrl: "",
-      checkInTime: "15:00",
-      checkOutTime: "11:00",
-      invoicePrefix: "INV-",
+      branchType: defaultBranchType,
     });
     setIsModalOpen(true);
   };
@@ -129,6 +150,7 @@ export default function LocationsSettingsPage() {
   const handleOpenEdit = (loc: ExtendedLocation) => {
     setEditingLocation(loc);
     setFormError(null);
+    const existingType = loc.branchType || (loc.hasRooms ? "HOSPITALITY" : "RESTAURANT");
     setFormData({
       name: loc.name || "",
       code: loc.code || "",
@@ -140,9 +162,7 @@ export default function LocationsSettingsPage() {
       latitude: loc.coordinates?.latitude !== undefined ? String(loc.coordinates.latitude) : "",
       longitude: loc.coordinates?.longitude !== undefined ? String(loc.coordinates.longitude) : "",
       mapUrl: loc.mapUrl || "",
-      checkInTime: loc.checkInTime || "15:00",
-      checkOutTime: loc.checkOutTime || "11:00",
-      invoicePrefix: loc.invoicePrefix || "INV-",
+      branchType: existingType,
     });
     setIsModalOpen(true);
   };
@@ -172,6 +192,11 @@ export default function LocationsSettingsPage() {
       return;
     }
 
+    if (!formData.branchType) {
+      setFormError("Branch Type is required. Please choose either Hospitality or Restaurant.");
+      return;
+    }
+
     const lat = formData.latitude.trim() ? parseFloat(formData.latitude) : undefined;
     const lng = formData.longitude.trim() ? parseFloat(formData.longitude) : undefined;
 
@@ -195,9 +220,8 @@ export default function LocationsSettingsPage() {
         email: formData.email.trim() || undefined,
         timezone: formData.timezone.trim() || "UTC",
         currency: formData.currency.trim() || "USD",
-        checkInTime: formData.checkInTime.trim() || "15:00",
-        checkOutTime: formData.checkOutTime.trim() || "11:00",
-        invoicePrefix: formData.invoicePrefix.trim() || "INV-",
+        branchType: formData.branchType,
+        hasRooms: formData.branchType === "HOSPITALITY",
         mapUrl: formData.mapUrl.trim() || undefined,
         coordinates:
           lat !== undefined || lng !== undefined
@@ -328,11 +352,18 @@ export default function LocationsSettingsPage() {
                             <Building className="w-4 h-4 text-blue-600 shrink-0" />
                             <div>
                               <p className="font-semibold text-slate-900 text-sm">{loc.name}</p>
-                              {loc.code && (
-                                <Badge variant="outline" className="text-[10px] font-mono mt-0.5">
-                                  {loc.code}
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {loc.code && (
+                                  <Badge variant="outline" className="text-[10px] font-mono">
+                                    {loc.code}
+                                  </Badge>
+                                )}
+                                <Badge variant="secondary" className="text-[10px] font-normal">
+                                  {loc.branchType === "RESTAURANT" || (!loc.branchType && !loc.hasRooms)
+                                    ? "Restaurant"
+                                    : "Hospitality"}
                                 </Badge>
-                              )}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
@@ -480,6 +511,39 @@ export default function LocationsSettingsPage() {
                 </div>
               </div>
 
+              {/* Branch Type */}
+              <div className="space-y-1">
+                <Label htmlFor="branchType">Branch Type *</Label>
+                <select
+                  id="branchType"
+                  required
+                  value={formData.branchType}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      branchType: e.target.value as "HOSPITALITY" | "RESTAURANT",
+                    })
+                  }
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer text-slate-800"
+                >
+                  {availableBranchTypes.length > 1 && (
+                    <option value="" disabled>
+                      Select Branch Type...
+                    </option>
+                  )}
+                  {availableBranchTypes.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500">
+                  {availableBranchTypes.length === 1
+                    ? `Determined by your active ${availableBranchTypes[0].label} subscription.`
+                    : "Select whether this location operates as a hotel/lodging or restaurant/dining facility."}
+                </p>
+              </div>
+
               <div className="space-y-1">
                 <Label htmlFor="branchAddress">Full Street Address</Label>
                 <Input
@@ -589,36 +653,6 @@ export default function LocationsSettingsPage() {
                     value={formData.currency}
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                     placeholder="e.g. USD, EUR, GBP"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="checkIn">Check-In Time</Label>
-                  <Input
-                    id="checkIn"
-                    value={formData.checkInTime}
-                    onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
-                    placeholder="15:00"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="checkOut">Check-Out Time</Label>
-                  <Input
-                    id="checkOut"
-                    value={formData.checkOutTime}
-                    onChange={(e) => setFormData({ ...formData, checkOutTime: e.target.value })}
-                    placeholder="11:00"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
-                  <Input
-                    id="invoicePrefix"
-                    value={formData.invoicePrefix}
-                    onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
-                    placeholder="INV-"
                   />
                 </div>
               </div>

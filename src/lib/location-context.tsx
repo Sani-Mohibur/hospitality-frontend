@@ -16,6 +16,7 @@ export interface TenantLocation {
   businessDate?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  branchType?: "HOSPITALITY" | "RESTAURANT";
   hasRooms?: boolean;
   coordinates?: {
     latitude?: number;
