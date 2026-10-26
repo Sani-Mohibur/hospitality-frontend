@@ -25,21 +25,38 @@ import {
 } from "lucide-react";
 
 export default function TenantProfilePage() {
-  const { user, tenant, refreshUser, isLoading: isAuthLoading } = useAuth();
+  const { user, tenant, refreshUser, updateTenantName, isLoading: isAuthLoading } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isTenantOwner = user?.role === "TENANT_OWNER";
+
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setPhone(user.phone || "");
+
+      const firstWord = user.name ? user.name.trim().split(/\s+/)[0] : "";
+      const defaultWorkspaceName = firstWord ? `${firstWord}'s Workspace` : "Workspace";
+
+      if (
+        tenant?.name &&
+        tenant.name !== "Standard Workspace" &&
+        tenant.name !== "Workspace" &&
+        !(user.name && user.name.trim().includes(" ") && tenant.name === `${user.name.trim()}'s Workspace`)
+      ) {
+        setWorkspaceName(tenant.name);
+      } else {
+        setWorkspaceName(defaultWorkspaceName);
+      }
     }
-  }, [user]);
+  }, [user, tenant]);
 
   // Clean up blob URL preview on unmount or file change
   useEffect(() => {
@@ -102,6 +119,11 @@ export default function TenantProfilePage() {
       return;
     }
 
+    if (isTenantOwner && !workspaceName.trim()) {
+      toast.error("Workspace name is required");
+      return;
+    }
+
     setIsSaving(true);
     setSavedSuccess(false);
 
@@ -110,6 +132,7 @@ export default function TenantProfilePage() {
       formData.append("data", JSON.stringify({
         name: name.trim(),
         phone: phone.trim(),
+        ...(isTenantOwner ? { workspaceName: workspaceName.trim() } : {}),
       }));
 
       if (selectedFile) {
@@ -117,6 +140,16 @@ export default function TenantProfilePage() {
       }
 
       await apiClient.patch("/user/update-profile", formData);
+
+      if (isTenantOwner && workspaceName.trim()) {
+        try {
+          await apiClient.patch("/tenant/me", { name: workspaceName.trim() });
+        } catch {
+          // Handled or already updated via user update-profile
+        }
+        updateTenantName(workspaceName.trim());
+      }
+
       await refreshUser();
 
       // Reset file selection
@@ -242,7 +275,8 @@ export default function TenantProfilePage() {
               <div className="flex items-center gap-2 text-slate-600">
                 <Building className="w-4 h-4 text-slate-400 shrink-0" />
                 <span className="truncate">
-                  <strong className="text-slate-800">Workspace:</strong> {tenant?.name || "Standard Workspace"}
+                  <strong className="text-slate-800">Workspace:</strong>{" "}
+                  {workspaceName || tenant?.name || "Workspace"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-slate-600">
@@ -280,6 +314,27 @@ export default function TenantProfilePage() {
                   disabled={isSaving}
                 />
               </div>
+
+              {isTenantOwner && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="workspaceName" className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                    <Building className="w-3.5 h-3.5 text-slate-400" />
+                    Workspace Name
+                  </Label>
+                  <Input
+                    id="workspaceName"
+                    value={workspaceName}
+                    onChange={(e) => setWorkspaceName(e.target.value)}
+                    placeholder="e.g. John's Workspace"
+                    required
+                    className="text-sm"
+                    disabled={isSaving}
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Visible to team members in the dashboard sidebar. Visible and editable only by the workspace owner.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs font-medium text-slate-700 flex items-center gap-1.5">

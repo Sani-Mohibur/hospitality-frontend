@@ -160,11 +160,21 @@ export function TenantSidebar() {
 
   if (!user) return null;
 
+  const firstWord = user.name ? user.name.trim().split(/\s+/)[0] : "";
+  const defaultWorkspaceName = firstWord ? `${firstWord}'s Workspace` : "Workspace";
+  const displayWorkspaceName =
+    tenant?.name &&
+    tenant.name !== "Standard Workspace" &&
+    tenant.name !== "Workspace" &&
+    !(user.name && user.name.trim().includes(" ") && tenant.name === `${user.name.trim()}'s Workspace`)
+      ? tenant.name
+      : defaultWorkspaceName;
+
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col h-full shadow-lg overflow-hidden shrink-0">
       <div className="p-6 border-b border-white/10 shrink-0">
-        <h2 className="text-xl font-bold truncate" title={tenant?.name || "Workspace"}>
-          {tenant?.name || "Workspace"}
+        <h2 className="text-xl font-bold truncate" title={displayWorkspaceName}>
+          {displayWorkspaceName}
         </h2>
         <p className="text-xs text-slate-400 mt-1">Operations Console</p>
       </div>

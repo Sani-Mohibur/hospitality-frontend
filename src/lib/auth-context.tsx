@@ -47,6 +47,7 @@ interface AuthContextType {
   login: (token: string, userData: User) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateTenantName: (name: string) => void;
   setUserRole: (role: Role) => void;
   toggleModule: (module: Module) => void;
   hasRole: (allowedRoles: Role[]) => boolean;
@@ -148,6 +149,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return tenant.subscribedModules.includes(module);
   };
 
+  const updateTenantName = (name: string) => {
+    setTenant((prev) => (prev ? { ...prev, name } : null));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -157,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         refreshUser,
+        updateTenantName,
         setUserRole,
         toggleModule,
         hasRole,
