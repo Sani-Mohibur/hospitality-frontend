@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Building2,
   UtensilsCrossed,
+  Store,
   Sparkles,
   CreditCard,
   ArrowRight,
@@ -71,6 +72,8 @@ export function SubscribedModulesCard({
                     <Building2 className="size-4" />
                   ) : mod === "RESTAURANT" ? (
                     <UtensilsCrossed className="size-4" />
+                  ) : mod === "RETAIL" ? (
+                    <Store className="size-4" />
                   ) : (
                     <Sparkles className="size-4" />
                   )}
@@ -81,7 +84,9 @@ export function SubscribedModulesCard({
                       ? "Hotel & PMS Operations"
                       : mod === "RESTAURANT"
                         ? "Restaurant POS & Dining"
-                        : mod}
+                        : mod === "RETAIL"
+                          ? "Retail POS & Shop"
+                          : mod}
                   </div>
                   <span className="text-[11px] text-emerald-800 font-medium">
                     Active &amp; Entitled

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { apiFetch } from "./api";
 
 export type Role = "SUPER_ADMIN" | "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
-export type Module = "HOSPITALITY" | "RESTAURANT" | "INVENTORY" | "DISTRIBUTION" | "AI_ASSISTANT";
+export type Module = "HOSPITALITY" | "RESTAURANT" | "RETAIL" | "INVENTORY" | "DISTRIBUTION" | "AI_ASSISTANT";
 
 export interface User {
   id: string;

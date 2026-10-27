@@ -21,6 +21,14 @@ import {
   ChevronUp,
   ChevronDown,
   MapPin,
+  Store,
+  ShoppingCart,
+  Tags,
+  Warehouse,
+  Truck,
+  ArrowLeftRight,
+  BarChart3,
+  Receipt,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, Role, Module } from "@/lib/auth-context";
@@ -73,6 +81,22 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "Retail",
+    module: "RETAIL",
+    collapsible: true,
+    items: [
+      { name: "Dashboard", href: "/tenant/retail/dashboard", icon: Store },
+      { name: "Products", href: "/tenant/retail/products", icon: Package },
+      { name: "Categories", href: "/tenant/retail/categories", icon: Tags },
+      { name: "Inventory", href: "/tenant/retail/inventory", icon: Warehouse },
+      { name: "Suppliers & POs", href: "/tenant/retail/suppliers", icon: Truck },
+      { name: "Stock Ops", href: "/tenant/retail/stock-ops", icon: ArrowLeftRight },
+      { name: "POS", href: "/tenant/retail/pos", icon: ShoppingCart },
+      { name: "Sales", href: "/tenant/retail/sales", icon: Receipt },
+      { name: "Reports", href: "/tenant/retail/reports", icon: BarChart3 },
+    ],
+  },
+  {
     title: "Shared & Settings",
     collapsible: true,
     allowedRoles: ["TENANT_OWNER", "TENANT_MANAGER"],
@@ -103,6 +127,7 @@ export function TenantSidebar() {
     const initial: Record<string, boolean> = {
       Hospitality: true,
       Restaurant: false,
+      Retail: false,
       "Shared & Settings": false,
     };
     navGroups.forEach((group) => {
