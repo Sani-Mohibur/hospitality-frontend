@@ -47,6 +47,36 @@ interface ExtendedLocation extends TenantLocation {
   mapUrl?: string;
 }
 
+type BranchTypeValue = "HOSPITALITY" | "RESTAURANT" | "RETAIL";
+
+interface LocationFormData {
+  name: string;
+  code: string;
+  address: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  currency: string;
+  latitude: string;
+  longitude: string;
+  mapUrl: string;
+  branchType: BranchTypeValue | "";
+}
+
+const initialFormData: LocationFormData = {
+  name: "",
+  code: "",
+  address: "",
+  phone: "",
+  email: "",
+  timezone: "UTC",
+  currency: "USD",
+  latitude: "",
+  longitude: "",
+  mapUrl: "",
+  branchType: "",
+};
+
 export default function LocationsSettingsPage() {
   const { tenant } = useAuth();
   const { refreshLocations } = useLocation();
@@ -58,9 +88,10 @@ export default function LocationsSettingsPage() {
 
   // Determine available branch types based on tenant's active subscriptions
   const availableBranchTypes = useMemo(() => {
-    const types: { label: string; value: "HOSPITALITY" | "RESTAURANT" }[] = [];
+    const types: { label: string; value: BranchTypeValue }[] = [];
     const isHosp = tenant?.subscribedModules?.includes("HOSPITALITY") ?? false;
     const isRest = tenant?.subscribedModules?.includes("RESTAURANT") ?? false;
+    const isRetail = tenant?.subscribedModules?.includes("RETAIL") ?? false;
 
     if (isHosp) {
       types.push({ label: "Hospitality", value: "HOSPITALITY" });
@@ -68,11 +99,15 @@ export default function LocationsSettingsPage() {
     if (isRest) {
       types.push({ label: "Restaurant", value: "RESTAURANT" });
     }
+    if (isRetail) {
+      types.push({ label: "Retail", value: "RETAIL" });
+    }
     // Fallback if tenant subscriptions are not yet loaded or empty
     if (types.length === 0) {
       types.push(
         { label: "Hospitality", value: "HOSPITALITY" },
-        { label: "Restaurant", value: "RESTAURANT" }
+        { label: "Restaurant", value: "RESTAURANT" },
+        { label: "Retail", value: "RETAIL" }
       );
     }
     return types;
@@ -84,37 +119,47 @@ export default function LocationsSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    address: "",
-    phone: "",
-    email: "",
-    timezone: "UTC",
-    currency: "USD",
-    latitude: "",
-    longitude: "",
-    mapUrl: "",
-    branchType: "",
-  });
+  const [formData, setFormData] = useState<LocationFormData>(initialFormData);
 
   const fetchLocationsData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const res = await apiClient.get<ExtendedLocation[]>("/location");
       const list = Array.isArray(res.data) ? res.data : [];
       setLocationsList(list);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load branch locations.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load branch locations.");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    setError(null);
+    await fetchLocationsData();
+  };
+
   useEffect(() => {
-    fetchLocationsData();
-  }, [fetchLocationsData]);
+    let ignore = false;
+    apiClient
+      .get<ExtendedLocation[]>("/location")
+      .then((res) => {
+        if (!ignore) {
+          const list = Array.isArray(res.data) ? res.data : [];
+          setLocationsList(list);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Failed to load branch locations.");
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const filteredLocations = useMemo(() => {
     const q = search.toLowerCase();
@@ -150,7 +195,7 @@ export default function LocationsSettingsPage() {
   const handleOpenEdit = (loc: ExtendedLocation) => {
     setEditingLocation(loc);
     setFormError(null);
-    const existingType = loc.branchType || (loc.hasRooms ? "HOSPITALITY" : "RESTAURANT");
+    const existingType: BranchTypeValue = loc.branchType || (loc.hasRooms ? "HOSPITALITY" : "RESTAURANT");
     setFormData({
       name: loc.name || "",
       code: loc.code || "",
@@ -193,7 +238,7 @@ export default function LocationsSettingsPage() {
     }
 
     if (!formData.branchType) {
-      setFormError("Branch Type is required. Please choose either Hospitality or Restaurant.");
+      setFormError("Branch Type is required. Please choose Hospitality, Restaurant, or Retail.");
       return;
     }
 
@@ -212,7 +257,7 @@ export default function LocationsSettingsPage() {
 
     setIsSubmitting(true);
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         name: formData.name.trim(),
         code: formData.code.trim() || undefined,
         address: formData.address.trim() || undefined,
@@ -238,8 +283,8 @@ export default function LocationsSettingsPage() {
       setIsModalOpen(false);
       await fetchLocationsData();
       await refreshLocations();
-    } catch (err: any) {
-      setFormError(err?.message || "Failed to save location.");
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to save location.");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,8 +301,8 @@ export default function LocationsSettingsPage() {
       await apiClient.delete(`/location/${id}`);
       await fetchLocationsData();
       await refreshLocations();
-    } catch (err: any) {
-      alert(err?.message || "Failed to delete location");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete location");
     }
   };
 
@@ -275,7 +320,7 @@ export default function LocationsSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchLocationsData}
+              onClick={handleRefresh}
               disabled={isLoading}
               className="gap-2 cursor-pointer"
             >
@@ -359,7 +404,9 @@ export default function LocationsSettingsPage() {
                                   </Badge>
                                 )}
                                 <Badge variant="secondary" className="text-[10px] font-normal">
-                                  {loc.branchType === "RESTAURANT" || (!loc.branchType && !loc.hasRooms)
+                                  {loc.branchType === "RETAIL"
+                                    ? "Retail"
+                                    : loc.branchType === "RESTAURANT" || (!loc.branchType && !loc.hasRooms)
                                     ? "Restaurant"
                                     : "Hospitality"}
                                 </Badge>
@@ -521,7 +568,7 @@ export default function LocationsSettingsPage() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      branchType: e.target.value as "HOSPITALITY" | "RESTAURANT",
+                      branchType: e.target.value as "HOSPITALITY" | "RESTAURANT" | "RETAIL",
                     })
                   }
                   className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer text-slate-800"
@@ -540,7 +587,7 @@ export default function LocationsSettingsPage() {
                 <p className="text-[11px] text-slate-500">
                   {availableBranchTypes.length === 1
                     ? `Determined by your active ${availableBranchTypes[0].label} subscription.`
-                    : "Select whether this location operates as a hotel/lodging or restaurant/dining facility."}
+                    : "Select whether this location operates as a lodging/hotel, restaurant/dining, or retail store facility."}
                 </p>
               </div>
 

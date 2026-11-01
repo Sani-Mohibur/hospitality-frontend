@@ -180,10 +180,10 @@ export default function AccountPage() {
                   {isRetailActive ? (
                     <>
                       <Link
-                        href="/tenant/retail/dashboard"
+                        href="/tenant/dashboard"
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink text-white text-xs font-semibold hover:bg-ink/90 transition-colors shadow-sm w-full md:w-auto"
                       >
-                        <span>Open Retail Dashboard</span>
+                        <span>Open Dashboard</span>
                         <ArrowRight className="size-3.5" />
                       </Link>
                       <button

@@ -91,16 +91,33 @@ export default function InventoryPage() {
     try {
       const res = await apiClient.get<InventoryItem[]>("/inventory");
       setItems(Array.isArray(res.data) ? res.data : []);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load inventory.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load inventory.");
     } finally {
       setIsLoading(false);
     }
-  }, [currentLocation]);
+  }, []);
 
   useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+    let ignore = false;
+    apiClient
+      .get<InventoryItem[]>("/inventory")
+      .then((res) => {
+        if (!ignore) {
+          setItems(Array.isArray(res.data) ? res.data : []);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Failed to load inventory.");
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [currentLocation]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -125,7 +142,7 @@ export default function InventoryPage() {
   }, [items, search, selectedCategory]);
 
   const handleOpenCreateModal = () => {
-    const defaultLoc = currentLocation && currentLocation._id !== "ALL" ? currentLocation._id : (locations[0]?._id || "");
+    const defaultLoc = currentLocation && !isAllLocations ? currentLocation._id : (locations[0]?._id || "");
     setCreateForm({
       name: "",
       sku: "",
@@ -143,7 +160,7 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!createForm.name.trim() || !createForm.sku.trim()) return;
 
-    const targetLocationId = createForm.locationId || (currentLocation && currentLocation._id !== "ALL" ? currentLocation._id : locations[0]?._id);
+    const targetLocationId = createForm.locationId || (currentLocation && !isAllLocations ? currentLocation._id : locations[0]?._id);
     if (!targetLocationId) {
       alert("Please select a location for this inventory item.");
       return;
@@ -165,8 +182,8 @@ export default function InventoryPage() {
 
       setIsCreateOpen(false);
       fetchInventory();
-    } catch (err: any) {
-      alert(err?.message || "Failed to create inventory item");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create inventory item");
     } finally {
       setIsSubmitting(false);
     }
@@ -187,8 +204,8 @@ export default function InventoryPage() {
       setIsAdjustOpen(false);
       setSelectedItemForAdjust(null);
       fetchInventory();
-    } catch (err: any) {
-      alert(err?.message || "Failed to adjust stock");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to adjust stock");
     } finally {
       setIsSubmitting(false);
     }
@@ -199,8 +216,8 @@ export default function InventoryPage() {
     try {
       await apiClient.delete(`/inventory/${id}`);
       fetchInventory();
-    } catch (err: any) {
-      alert(err?.message || "Failed to delete item");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete item");
     }
   };
 
@@ -210,7 +227,7 @@ export default function InventoryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Centralized Inventory</h1>
           <p className="text-sm text-slate-500">
-            Track and manage stock levels across hotel and dining outlets.
+            Track and manage stock levels across hotel, dining, and retail outlets.
             {currentLocation && (
               <span className="font-semibold text-blue-600 ml-1">
                 (Showing: {currentLocation.name})
@@ -475,7 +492,7 @@ export default function InventoryPage() {
                   <select
                     id="adjustType"
                     value={adjustForm.type}
-                    onChange={(e) => setAdjustForm({ ...adjustForm, type: e.target.value as any })}
+                    onChange={(e) => setAdjustForm({ ...adjustForm, type: e.target.value as "ADD" | "SUBTRACT" })}
                     className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
                     <option value="ADD">Add / Receive (+)</option>

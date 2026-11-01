@@ -85,7 +85,6 @@ const navGroups: NavGroup[] = [
     module: "RETAIL",
     collapsible: true,
     items: [
-      { name: "Dashboard", href: "/tenant/retail/dashboard", icon: Store },
       { name: "Products", href: "/tenant/retail/products", icon: Package },
       { name: "Categories", href: "/tenant/retail/categories", icon: Tags },
       { name: "Inventory", href: "/tenant/retail/inventory", icon: Warehouse },
@@ -171,9 +170,13 @@ export function TenantSidebar() {
     };
   }, [isProfileOpen]);
 
-  useEffect(() => {
-    setIsProfileOpen(false);
-  }, [pathname]);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (isProfileOpen) {
+      setIsProfileOpen(false);
+    }
+  }
 
   const getInitials = (name?: string) => {
     if (!name) return "TU";

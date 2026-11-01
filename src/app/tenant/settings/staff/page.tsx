@@ -33,7 +33,7 @@ interface StaffMember {
   phone?: string;
   role: "TENANT_OWNER" | "TENANT_MANAGER" | "STAFF";
   allLocations?: boolean;
-  locationIds?: any[];
+  locationIds?: Array<string | TenantLocation>;
   isActive?: boolean;
   createdAt?: string;
 }
@@ -90,16 +90,33 @@ export default function StaffSettingsPage() {
     try {
       const res = await apiClient.get<StaffMember[]>("/user/staff");
       setStaffList(Array.isArray(res.data) ? res.data : []);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load staff roster.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load staff roster.");
     } finally {
       setIsLoading(false);
     }
-  }, [currentLocation]);
+  }, []);
 
   useEffect(() => {
-    fetchStaff();
-  }, [fetchStaff]);
+    let ignore = false;
+    apiClient
+      .get<StaffMember[]>("/user/staff")
+      .then((res) => {
+        if (!ignore) {
+          setStaffList(Array.isArray(res.data) ? res.data : []);
+          setIsLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Failed to load staff roster.");
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [currentLocation]);
 
   const filteredStaff = useMemo(() => {
     return staffList.filter((s) => {
@@ -151,7 +168,7 @@ export default function StaffSettingsPage() {
     let defaultAll = false;
 
     if (isOwner) {
-      if (isAllLocations || !currentLocation || currentLocation._id === "ALL") {
+      if (isAllLocations || !currentLocation) {
         defaultAll = true;
       } else {
         defaultLocations = [currentLocation._id];
@@ -159,7 +176,7 @@ export default function StaffSettingsPage() {
     } else {
       // Manager is strictly restricted to assigned branches
       defaultAll = false;
-      if (currentLocation && currentLocation._id !== "ALL" && locations.some((l) => l._id === currentLocation._id)) {
+      if (currentLocation && !isAllLocations && locations.some((l) => l._id === currentLocation._id)) {
         defaultLocations = [currentLocation._id];
       } else if (locations.length > 0) {
         defaultLocations = [locations[0]._id];
@@ -225,7 +242,7 @@ export default function StaffSettingsPage() {
         setFormError("Cannot create staff: This email address is already registered.");
         return;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Email pre-check error", err);
     }
 
@@ -244,8 +261,8 @@ export default function StaffSettingsPage() {
 
       setIsAddOpen(false);
       fetchStaff();
-    } catch (err: any) {
-      setFormError(err?.message || "Failed to add staff member.");
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to add staff member.");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,8 +273,8 @@ export default function StaffSettingsPage() {
     try {
       await apiClient.delete(`/user/staff/${id}`);
       fetchStaff();
-    } catch (err: any) {
-      alert(err?.message || "Failed to remove staff member");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to remove staff member");
     }
   };
 
@@ -497,7 +514,7 @@ export default function StaffSettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-xs font-semibold text-slate-700">Location Assignment</Label>
-                    {currentLocation && currentLocation._id !== "ALL" && (
+                    {currentLocation && !isAllLocations && (
                       <p className="text-[11px] text-slate-500">
                         Defaulted to active branch: <span className="font-medium text-slate-700">{currentLocation.name}</span>
                       </p>

@@ -241,6 +241,52 @@ export const mockReturns: RetailReturn[] = [
   { _id: "ret-2", returnNumber: "RTN-2025-002", saleReceiptNumber: "RCP-2025-0006", reason: "Voided sale — customer changed mind", lines: [{ name: "Ceramic Table Lamp", sku: "HOME-CTL-003", quantity: 1, refundAmountMinor: 14190, condition: "RESELLABLE" }], refundAmountMinor: 14190, refundMethod: "CARD", processedBy: "Maria T.", createdAt: "2025-11-08T12:30:00Z" },
 ];
 
+export interface MockRetailBranch {
+  _id: string;
+  name: string;
+  code?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  timezone?: string;
+  currency?: string;
+  businessDate?: string;
+  branchType?: "HOSPITALITY" | "RESTAURANT" | "RETAIL";
+  hasRooms?: boolean;
+  isActive?: boolean;
+}
+
+export const mockRetailLocations: MockRetailBranch[] = [
+  {
+    _id: "loc-retail-1",
+    name: "Main Store",
+    code: "RET-MAIN",
+    branchType: "RETAIL",
+    address: "101 Commerce Blvd, Downtown",
+    phone: "+1-555-0201",
+    email: "mainstore@example.com",
+    timezone: "UTC",
+    currency: "USD",
+    businessDate: "2026-11-01",
+    hasRooms: false,
+    isActive: true,
+  },
+  {
+    _id: "loc-retail-2",
+    name: "Central Warehouse",
+    code: "RET-WH",
+    branchType: "RETAIL",
+    address: "400 Logistics Way, Industrial Park",
+    phone: "+1-555-0202",
+    email: "warehouse@example.com",
+    timezone: "UTC",
+    currency: "USD",
+    businessDate: "2026-11-01",
+    hasRooms: false,
+    isActive: true,
+  },
+];
+
 // Helper
 export function formatMinor(minor: number): string {
   return `$${(minor / 100).toFixed(2)}`;

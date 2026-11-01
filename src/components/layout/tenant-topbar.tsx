@@ -16,6 +16,7 @@ import {
   ALL_LOCATIONS_ID,
   ALL_LOCATIONS_HOSPITALITY_ID,
   ALL_LOCATIONS_RESTAURANT_ID,
+  ALL_LOCATIONS_RETAIL_ID,
 } from "@/lib/location-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -35,15 +36,18 @@ export function TenantTopbar() {
 
   const isHospitalityRoute = pathname.startsWith("/tenant/hospitality");
   const isRestaurantRoute = pathname.startsWith("/tenant/restaurant");
+  const isRetailRoute = pathname.startsWith("/tenant/retail");
 
   const hasHospitalitySub = hasModule("HOSPITALITY");
   const hasRestaurantSub = hasModule("RESTAURANT");
-  const bothSubscribed = hasHospitalitySub && hasRestaurantSub;
+  const hasRetailSub = hasModule("RETAIL");
 
   const isHospLoc = (loc: TenantLocation) =>
-    loc.branchType === "HOSPITALITY" || (!loc.branchType && loc.hasRooms);
+    loc.branchType === "HOSPITALITY" || (!loc.branchType && Boolean(loc.hasRooms));
   const isRestLoc = (loc: TenantLocation) =>
     loc.branchType === "RESTAURANT" || (!loc.branchType && !loc.hasRooms);
+  const isRetailLoc = (loc: TenantLocation) =>
+    loc.branchType === "RETAIL";
 
   const hospitalityBranches = useMemo(
     () => locations.filter(isHospLoc),
@@ -53,11 +57,17 @@ export function TenantTopbar() {
     () => locations.filter(isRestLoc),
     [locations]
   );
+  const retailBranches = useMemo(
+    () => locations.filter(isRetailLoc),
+    [locations]
+  );
 
   const showAllHospitalityOption =
     canAccessAllLocations && hospitalityBranches.length > 1;
   const showAllRestaurantOption =
     canAccessAllLocations && restaurantBranches.length > 1;
+  const showAllRetailOption =
+    canAccessAllLocations && retailBranches.length > 1;
 
   interface DropdownOption {
     id: string;
@@ -96,74 +106,77 @@ export function TenantTopbar() {
           label: `${b.name} · Restaurant`,
         });
       });
+    } else if (isRetailRoute) {
+      if (showAllRetailOption) {
+        options.push({
+          id: ALL_LOCATIONS_RETAIL_ID,
+          label: "All Locations · Retail",
+          isAll: true,
+        });
+      }
+      retailBranches.forEach((b) => {
+        options.push({
+          id: b._id,
+          label: `${b.name} · Retail`,
+        });
+      });
     } else {
       // Dashboard, Shared & Settings pages
-      if (bothSubscribed) {
-        if (canAccessAllLocations) {
-          options.push({
-            id: ALL_LOCATIONS_ID,
-            label: "All Locations",
-            isAll: true,
-          });
-        }
-        if (showAllHospitalityOption) {
+      const activeModulesCount =
+        (hasHospitalitySub ? 1 : 0) + (hasRestaurantSub ? 1 : 0) + (hasRetailSub ? 1 : 0);
+
+      if (canAccessAllLocations) {
+        options.push({
+          id: ALL_LOCATIONS_ID,
+          label: "All Locations",
+          isAll: true,
+        });
+        if (showAllHospitalityOption && (hasHospitalitySub || activeModulesCount === 0)) {
           options.push({
             id: ALL_LOCATIONS_HOSPITALITY_ID,
             label: "All Locations · Hospitality",
             isAll: true,
           });
         }
-        if (showAllRestaurantOption) {
+        if (showAllRestaurantOption && (hasRestaurantSub || activeModulesCount === 0)) {
           options.push({
             id: ALL_LOCATIONS_RESTAURANT_ID,
             label: "All Locations · Restaurant",
             isAll: true,
           });
         }
+        if (showAllRetailOption && (hasRetailSub || activeModulesCount === 0)) {
+          options.push({
+            id: ALL_LOCATIONS_RETAIL_ID,
+            label: "All Locations · Retail",
+            isAll: true,
+          });
+        }
+      }
+
+      if (hasHospitalitySub || activeModulesCount === 0) {
         hospitalityBranches.forEach((b) => {
           options.push({
             id: b._id,
             label: `${b.name} · Hospitality`,
           });
         });
+      }
+      if (hasRestaurantSub || activeModulesCount === 0) {
         restaurantBranches.forEach((b) => {
           options.push({
             id: b._id,
             label: `${b.name} · Restaurant`,
           });
         });
-      } else {
-        // Only one module subscribed
-        if (canAccessAllLocations) {
+      }
+      if (hasRetailSub || activeModulesCount === 0) {
+        retailBranches.forEach((b) => {
           options.push({
-            id: ALL_LOCATIONS_ID,
-            label: "All Locations",
-            isAll: true,
+            id: b._id,
+            label: `${b.name} · Retail`,
           });
-        }
-        if (hasHospitalitySub) {
-          hospitalityBranches.forEach((b) => {
-            options.push({
-              id: b._id,
-              label: `${b.name} · Hospitality`,
-            });
-          });
-        } else if (hasRestaurantSub) {
-          restaurantBranches.forEach((b) => {
-            options.push({
-              id: b._id,
-              label: `${b.name} · Restaurant`,
-            });
-          });
-        } else {
-          locations.forEach((b) => {
-            const typeLabel = isHospLoc(b) ? "Hospitality" : "Restaurant";
-            options.push({
-              id: b._id,
-              label: `${b.name} · ${typeLabel}`,
-            });
-          });
-        }
+        });
       }
     }
 
@@ -171,15 +184,17 @@ export function TenantTopbar() {
   }, [
     isHospitalityRoute,
     isRestaurantRoute,
+    isRetailRoute,
     showAllHospitalityOption,
     showAllRestaurantOption,
-    bothSubscribed,
+    showAllRetailOption,
     canAccessAllLocations,
     hospitalityBranches,
     restaurantBranches,
+    retailBranches,
     hasHospitalitySub,
     hasRestaurantSub,
-    locations,
+    hasRetailSub,
   ]);
 
   // Keep selected location in sync with valid options for the current page
@@ -248,6 +263,11 @@ export function TenantTopbar() {
         {currentLocation?._id === ALL_LOCATIONS_RESTAURANT_ID && (
           <span className="text-xs font-medium bg-purple-50 text-purple-800 px-2.5 py-1 rounded-full border border-purple-200">
             All Restaurant Branches
+          </span>
+        )}
+        {currentLocation?._id === ALL_LOCATIONS_RETAIL_ID && (
+          <span className="text-xs font-medium bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200">
+            All Retail Branches
           </span>
         )}
       </div>
