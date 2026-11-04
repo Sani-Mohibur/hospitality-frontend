@@ -1,158 +1,486 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ArrowLeftRight,
   ClipboardCheck,
   Sparkles,
   Plus,
-  Send,
-  CheckCircle2,
-  AlertTriangle,
-  Package,
-  Layers,
-  ArrowRight,
-  FileSpreadsheet,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { useLocation } from "@/lib/location-context";
+import { toast } from "sonner";
 import {
-  mockTransfers,
-  mockStocktakes,
-  mockStockItems,
-  mockProducts,
+  RetailTransferLine,
   RetailTransfer,
+  RetailStocktakeLine,
   RetailStocktake,
-  RetailStockItem,
-  formatMinor,
-} from "@/lib/retail-mock-data";
+  RestockSuggestion,
+  ProductOption,
+  ActiveStocktakeAudit,
+  RawTransferLine,
+  RawTransfer,
+  RawStocktakeLine,
+  RawStocktake,
+  RawRestockSuggestion,
+  RawProductOption,
+  LocationTransfersTab,
+  StocktakeTab,
+  RestockSuggestionsTab,
+  CreateTransferModal,
+} from "@/components/retail/stock-ops";
+
+// Re-export domain interfaces for backward-compatibility with other modules
+export type {
+  RetailTransferLine,
+  RetailTransfer,
+  RetailStocktakeLine,
+  RetailStocktake,
+  RestockSuggestion,
+  ProductOption,
+  ActiveStocktakeAudit,
+};
 
 export default function RetailStockOpsPage() {
+  const { currentLocation, locations } = useLocation();
+
   const [activeTab, setActiveTab] = useState<"TRANSFERS" | "STOCKTAKE" | "SUGGESTIONS">("TRANSFERS");
 
   // Transfers
-  const [transfers, setTransfers] = useState<RetailTransfer[]>(mockTransfers);
+  const [transfers, setTransfers] = useState<RetailTransfer[]>([]);
+  const [isLoadingTransfers, setIsLoadingTransfers] = useState(true);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [transferFrom, setTransferFrom] = useState("Warehouse");
-  const [transferTo, setTransferTo] = useState("Main Store");
-  const [transferNotes, setTransferNotes] = useState("");
-  const [transferLines, setTransferLines] = useState<
-    { productId: string; productName: string; sku: string; quantity: number }[]
-  >([
-    {
-      productId: mockProducts[0]?._id || "",
-      productName: mockProducts[0]?.name || "",
-      sku: mockProducts[0]?.sku || "",
-      quantity: 5,
-    },
-  ]);
 
-  // Stocktake
-  const [stocktakes, setStocktakes] = useState<RetailStocktake[]>(mockStocktakes);
-  const [activeStocktakeAudit, setActiveStocktakeAudit] = useState<{
-    stocktakeNumber: string;
-    location: string;
-    items: {
-      productId: string;
-      name: string;
-      sku: string;
-      systemQty: number;
-      countedQty: number;
-    }[];
-  } | null>(null);
+  // Stocktakes
+  const [stocktakes, setStocktakes] = useState<RetailStocktake[]>([]);
+  const [isLoadingStocktakes, setIsLoadingStocktakes] = useState(true);
+  const [activeStocktakeAudit, setActiveStocktakeAudit] = useState<ActiveStocktakeAudit | null>(null);
 
-  // Restock items
-  const restockSuggestions = useMemo(() => {
-    return mockStockItems
-      .filter((item) => item.onHand <= item.reorderPoint)
-      .map((item) => {
-        const suggestedQty = Math.max(item.reorderQty, item.parLevel - item.onHand);
-        return {
-          ...item,
-          suggestedQty,
-          estimatedCostMinor: Math.round(suggestedQty * item.unitCost * 100),
-        };
+  // Suggestions
+  const [restockSuggestions, setRestockSuggestions] = useState<RestockSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
+
+  // Products for transfer line selector
+  const [availableProducts, setAvailableProducts] = useState<ProductOption[]>([]);
+
+  // Action state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 1. Fetch Transfers
+  const fetchTransfers = useCallback(() => {
+    setIsLoadingTransfers(true);
+    const params: Record<string, string> = {};
+    if (currentLocation?._id) {
+      params.locationId = currentLocation._id;
+    }
+    apiClient
+      .get<RawTransfer[]>("/retail/transfer", { params })
+      .then((res) => {
+        const raw = Array.isArray(res.data) ? res.data : [];
+        const mapped: RetailTransfer[] = raw.map((t) => {
+          const fromName =
+            typeof t.fromLocationId === "object" && t.fromLocationId?.name
+              ? t.fromLocationId.name
+              : t.fromLocationName || "Origin";
+          const toName =
+            typeof t.toLocationId === "object" && t.toLocationId?.name
+              ? t.toLocationId.name
+              : t.toLocationName || "Destination";
+          const lines: RetailTransferLine[] = (t.lines || []).map((l: RawTransferLine) => ({
+            productId: typeof l.productId === "object" ? l.productId?._id || "" : l.productId || "",
+            productName:
+              typeof l.productId === "object" && l.productId?.name
+                ? l.productId.name
+                : l.productName || l.name || "Item",
+            sku: typeof l.productId === "object" && l.productId?.sku ? l.productId.sku : l.sku || "",
+            quantity: l.quantity || 0,
+            unitCost: l.unitCost ? l.unitCost / 100 : undefined,
+          }));
+
+          return {
+            _id: t._id,
+            transferNumber: t.transferNumber || `TRF-${t._id.slice(-6).toUpperCase()}`,
+            fromLocationId: typeof t.fromLocationId === "object" ? t.fromLocationId?._id : t.fromLocationId,
+            fromLocation: fromName,
+            toLocationId: typeof t.toLocationId === "object" ? t.toLocationId?._id : t.toLocationId,
+            toLocation: toName,
+            status: t.status,
+            lines,
+            notes: t.notes,
+            createdAt: t.createdAt,
+          };
+        });
+        setTransfers(mapped);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to load transfers";
+        setError(msg);
+      })
+      .finally(() => {
+        setIsLoadingTransfers(false);
       });
-  }, []);
+  }, [currentLocation]);
 
-  // Transfer action handlers
-  const handleCreateTransfer = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (transferFrom === transferTo) {
-      alert("Source and Destination locations must be different.");
-      return;
+  // 2. Fetch Stocktakes
+  const fetchStocktakes = useCallback(() => {
+    setIsLoadingStocktakes(true);
+    const params: Record<string, string> = {};
+    if (currentLocation?._id) {
+      params.locationId = currentLocation._id;
+    }
+    apiClient
+      .get<RawStocktake[]>("/retail/stocktake", { params })
+      .then((res) => {
+        const raw = Array.isArray(res.data) ? res.data : [];
+        const mapped: RetailStocktake[] = raw.map((s) => {
+          const locName =
+            typeof s.locationId === "object" && s.locationId?.name
+              ? s.locationId.name
+              : s.locationName || "Store";
+          const lines: RetailStocktakeLine[] = (s.lines || []).map((l: RawStocktakeLine) => ({
+            productId: typeof l.productId === "object" ? l.productId?._id || "" : l.productId || "",
+            variantId: typeof l.variantId === "object" ? l.variantId?._id : l.variantId,
+            stockItemId: typeof l.stockItemId === "object" ? l.stockItemId?._id || "" : l.stockItemId || "",
+            productName: l.productName || l.name || "Item",
+            sku: l.sku || "",
+            systemQty: l.systemQty || 0,
+            countedQty: l.countedQty,
+            unitCost: l.unitCost,
+          }));
+
+          const varianceCount = lines.filter(
+            (l) => l.countedQty !== undefined && l.countedQty !== l.systemQty
+          ).length;
+
+          return {
+            _id: s._id,
+            stocktakeNumber: s.stocktakeNumber || `STK-${s._id.slice(-6).toUpperCase()}`,
+            locationId: typeof s.locationId === "object" ? s.locationId?._id : s.locationId,
+            locationName: locName,
+            status: s.status,
+            itemsCounted: lines.length,
+            varianceItems: varianceCount,
+            lines,
+            createdAt: s.createdAt,
+            completedAt: s.completedAt,
+          };
+        });
+        setStocktakes(mapped);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to load stocktakes";
+        setError(msg);
+      })
+      .finally(() => {
+        setIsLoadingStocktakes(false);
+      });
+  }, [currentLocation]);
+
+  // 3. Fetch Restock Suggestions
+  const fetchSuggestions = useCallback(() => {
+    setIsLoadingSuggestions(true);
+    const params: Record<string, string> = {};
+    if (currentLocation?._id) {
+      params.locationId = currentLocation._id;
+    }
+    apiClient
+      .get<RawRestockSuggestion[]>("/retail/inventory/restock-suggestions", { params })
+      .then((res) => {
+        const raw = Array.isArray(res.data) ? res.data : [];
+        const mapped: RestockSuggestion[] = raw.map((item) => {
+          const onHand = item.quantity ?? item.onHand ?? 0;
+          const reorderPoint = item.reorderPoint ?? 10;
+          const parLevel = item.parLevel ?? 20;
+          const reorderQty = item.reorderQty ?? 10;
+          const suggestedQty = Math.max(reorderQty, parLevel - onHand);
+          const unitCostMinor = item.unitCost ?? (item.costPriceMinor || 1000);
+          const estimatedCostMinor = suggestedQty * unitCostMinor;
+
+          return {
+            _id: item._id,
+            productId: typeof item.productId === "object" ? item.productId?._id || "" : item.productId || "",
+            productName:
+              item.name ||
+              item.productName ||
+              (typeof item.productId === "object" ? item.productId?.name : "Item") ||
+              "Item",
+            sku: item.sku || "",
+            supplierName:
+              typeof item.supplierId === "object" && item.supplierId?.name
+                ? item.supplierId.name
+                : item.supplierName || undefined,
+            onHand,
+            reorderPoint,
+            parLevel,
+            suggestedQty,
+            estimatedCostMinor,
+            unitCost: unitCostMinor / 100,
+          };
+        });
+        setRestockSuggestions(mapped);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to load restock suggestions";
+        setError(msg);
+      })
+      .finally(() => {
+        setIsLoadingSuggestions(false);
+      });
+  }, [currentLocation]);
+
+  // Initial load
+  useEffect(() => {
+    let ignore = false;
+
+    const params: Record<string, string> = {};
+    if (currentLocation?._id) {
+      params.locationId = currentLocation._id;
     }
 
-    const newTransfer: RetailTransfer = {
-      _id: `tr-${Date.now()}`,
-      transferNumber: `TRF-${new Date().getFullYear()}-${(transfers.length + 1).toString().padStart(3, "0")}`,
-      fromLocation: transferFrom,
-      toLocation: transferTo,
-      status: "DISPATCHED",
-      lines: transferLines.map((l) => ({
-        productName: l.productName,
-        sku: l.sku,
-        quantity: l.quantity,
-        unitCost: 15.0,
-      })),
-      notes: transferNotes || undefined,
-      createdAt: new Date().toISOString(),
-    };
+    Promise.all([
+      apiClient.get<RawTransfer[]>("/retail/transfer", { params }),
+      apiClient.get<RawStocktake[]>("/retail/stocktake", { params }),
+      apiClient.get<RawRestockSuggestion[]>("/retail/inventory/restock-suggestions", { params }),
+      apiClient.get<RawProductOption[]>("/retail/product"),
+    ])
+      .then(([trRes, stkRes, sugRes, prodRes]) => {
+        if (!ignore) {
+          setError(null);
+          // Transfers
+          const rawTr = Array.isArray(trRes.data) ? trRes.data : [];
+          setTransfers(
+            rawTr.map((t) => ({
+              _id: t._id,
+              transferNumber: t.transferNumber || `TRF-${t._id.slice(-6).toUpperCase()}`,
+              fromLocationId: typeof t.fromLocationId === "object" ? t.fromLocationId?._id : t.fromLocationId,
+              fromLocation:
+                typeof t.fromLocationId === "object" && t.fromLocationId?.name
+                  ? t.fromLocationId.name
+                  : t.fromLocationName || "Origin",
+              toLocationId: typeof t.toLocationId === "object" ? t.toLocationId?._id : t.toLocationId,
+              toLocation:
+                typeof t.toLocationId === "object" && t.toLocationId?.name
+                  ? t.toLocationId.name
+                  : t.toLocationName || "Destination",
+              status: t.status,
+              lines: (t.lines || []).map((l: RawTransferLine) => ({
+                productId: typeof l.productId === "object" ? l.productId?._id || "" : l.productId || "",
+                productName:
+                  typeof l.productId === "object" && l.productId?.name
+                    ? l.productId.name
+                    : l.productName || l.name || "Item",
+                sku: typeof l.productId === "object" && l.productId?.sku ? l.productId.sku : l.sku || "",
+                quantity: l.quantity || 0,
+                unitCost: l.unitCost ? l.unitCost / 100 : undefined,
+              })),
+              notes: t.notes,
+              createdAt: t.createdAt,
+            }))
+          );
 
-    setTransfers((prev) => [newTransfer, ...prev]);
-    setIsTransferModalOpen(false);
+          // Stocktakes
+          const rawStk = Array.isArray(stkRes.data) ? stkRes.data : [];
+          setStocktakes(
+            rawStk.map((s) => {
+              const lines: RetailStocktakeLine[] = (s.lines || []).map((l: RawStocktakeLine) => ({
+                productId: typeof l.productId === "object" ? l.productId?._id || "" : l.productId || "",
+                variantId: typeof l.variantId === "object" ? l.variantId?._id : l.variantId,
+                stockItemId: typeof l.stockItemId === "object" ? l.stockItemId?._id || "" : l.stockItemId || "",
+                productName: l.productName || l.name || "Item",
+                sku: l.sku || "",
+                systemQty: l.systemQty || 0,
+                countedQty: l.countedQty,
+                unitCost: l.unitCost,
+              }));
+              const varianceCount = lines.filter(
+                (l) => l.countedQty !== undefined && l.countedQty !== l.systemQty
+              ).length;
+
+              return {
+                _id: s._id,
+                stocktakeNumber: s.stocktakeNumber || `STK-${s._id.slice(-6).toUpperCase()}`,
+                locationId: typeof s.locationId === "object" ? s.locationId?._id : s.locationId,
+                locationName:
+                  typeof s.locationId === "object" && s.locationId?.name
+                    ? s.locationId.name
+                    : s.locationName || "Store",
+                status: s.status,
+                itemsCounted: lines.length,
+                varianceItems: varianceCount,
+                lines,
+                createdAt: s.createdAt,
+                completedAt: s.completedAt,
+              };
+            })
+          );
+
+          // Suggestions
+          const rawSug = Array.isArray(sugRes.data) ? sugRes.data : [];
+          setRestockSuggestions(
+            rawSug.map((item) => {
+              const onHand = item.quantity ?? item.onHand ?? 0;
+              const reorderPoint = item.reorderPoint ?? 10;
+              const parLevel = item.parLevel ?? 20;
+              const reorderQty = item.reorderQty ?? 10;
+              const suggestedQty = Math.max(reorderQty, parLevel - onHand);
+              const unitCostMinor = item.unitCost ?? (item.costPriceMinor || 1000);
+              return {
+                _id: item._id,
+                productId: typeof item.productId === "object" ? item.productId?._id || "" : item.productId || "",
+                productName:
+                  item.name ||
+                  item.productName ||
+                  (typeof item.productId === "object" ? item.productId?.name : "Item") ||
+                  "Item",
+                sku: item.sku || "",
+                supplierName:
+                  typeof item.supplierId === "object" && item.supplierId?.name
+                    ? item.supplierId.name
+                    : item.supplierName || undefined,
+                onHand,
+                reorderPoint,
+                parLevel,
+                suggestedQty,
+                estimatedCostMinor: suggestedQty * unitCostMinor,
+                unitCost: unitCostMinor / 100,
+              };
+            })
+          );
+
+          // Products
+          const rawProd = Array.isArray(prodRes.data) ? prodRes.data : [];
+          setAvailableProducts(
+            rawProd.map((p) => ({
+              _id: p._id,
+              name: p.name,
+              sku: p.sku || "",
+              costPriceMinor: p.costPriceMinor || 0,
+            }))
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (!ignore) {
+          const msg = err instanceof Error ? err.message : "Failed to load stock operations";
+          setError(msg);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsLoadingTransfers(false);
+          setIsLoadingStocktakes(false);
+          setIsLoadingSuggestions(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [currentLocation]);
+
+  // Open Transfer Modal
+  const handleOpenTransferModal = () => {
+    if (locations.length < 2) {
+      toast.error("Internal transfers require at least two configured tenant locations.");
+      return;
+    }
+    if (availableProducts.length === 0) {
+      toast.error("No retail products available to transfer.");
+      return;
+    }
+    setIsTransferModalOpen(true);
   };
 
-  const handleUpdateTransferStatus = (
-    transferId: string,
-    newStatus: RetailTransfer["status"]
-  ) => {
-    setTransfers((prev) =>
-      prev.map((t) => (t._id === transferId ? { ...t, status: newStatus } : t))
-    );
+  // Create Transfer
+  const handleCreateTransferSubmit = async (data: {
+    fromLocationId: string;
+    toLocationId: string;
+    lines: Array<{ productId: string; quantity: number }>;
+    notes?: string;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        fromLocationId: data.fromLocationId,
+        toLocationId: data.toLocationId,
+        lines: data.lines.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+        })),
+        notes: data.notes?.trim() || undefined,
+        autoDispatch: true,
+      };
+
+      const res = await apiClient.post<RawTransfer>("/retail/transfer", payload);
+      toast.success(`Transfer ${res.data.transferNumber || "request"} created & dispatched!`);
+      setIsTransferModalOpen(false);
+      fetchTransfers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create transfer";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Acknowledge Receipt
+  const handleReceiveTransfer = async (transferId: string) => {
+    try {
+      await apiClient.post(`/retail/transfer/${transferId}/receive`);
+      toast.success("Stock transfer acknowledged & received into destination inventory!");
+      fetchTransfers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to acknowledge receipt";
+      toast.error(msg);
+    }
   };
 
   // Stocktake audit start
-  const handleStartStocktake = () => {
-    const items = mockStockItems.map((s) => ({
-      productId: s.productId,
-      name: s.productName,
-      sku: s.sku,
-      systemQty: s.onHand,
-      countedQty: s.onHand, // Default to system, user modifies
-    }));
+  const handleStartStocktake = async () => {
+    const locId = currentLocation?._id || locations[0]?._id;
+    if (!locId) {
+      toast.error("Please select a location to audit.");
+      return;
+    }
 
-    setActiveStocktakeAudit({
-      stocktakeNumber: `STK-${new Date().getFullYear()}-${(stocktakes.length + 1).toString().padStart(3, "0")}`,
-      location: "Main Store",
-      items,
-    });
+    const locName = locations.find((l) => l._id === locId)?.name || "Store";
+
+    setIsSubmitting(true);
+    try {
+      const res = await apiClient.post<RawStocktake>("/retail/stocktake", {
+        name: `Audit - ${locName} - ${new Date().toLocaleDateString()}`,
+        locationId: locId,
+      });
+
+      const stk = res.data;
+      const items = (stk.lines || []).map((l: RawStocktakeLine) => ({
+        productId: typeof l.productId === "object" ? l.productId?._id || "" : l.productId || "",
+        stockItemId: typeof l.stockItemId === "object" ? l.stockItemId?._id || "" : l.stockItemId || "",
+        name: l.productName || l.name || "Item",
+        sku: l.sku || "",
+        systemQty: l.systemQty || 0,
+        countedQty: l.systemQty || 0,
+      }));
+
+      setActiveStocktakeAudit({
+        _id: stk._id,
+        stocktakeNumber: stk.stocktakeNumber || `STK-${Date.now().toString().slice(-4)}`,
+        location: locName,
+        items,
+      });
+
+      toast.success(`Started new stocktake audit ${stk.stocktakeNumber}!`);
+      fetchStocktakes();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to start stocktake";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCountChange = (productId: string, val: number) => {
@@ -165,25 +493,34 @@ export default function RetailStockOpsPage() {
     });
   };
 
-  const handleCommitStocktake = () => {
+  const handleCommitStocktake = async () => {
     if (!activeStocktakeAudit) return;
-    const varianceCount = activeStocktakeAudit.items.filter(
-      (item) => item.countedQty !== item.systemQty
-    ).length;
+    setIsSubmitting(true);
+    try {
+      // 1. Record counts
+      const countsPayload = {
+        lines: activeStocktakeAudit.items.map((i) => ({
+          stockItemId: i.stockItemId,
+          countedQty: i.countedQty,
+        })),
+        notes: "Counted physical quantities entered via portal",
+      };
+      await apiClient.post(`/retail/stocktake/${activeStocktakeAudit._id}/counts`, countsPayload);
 
-    const completedStocktake: RetailStocktake = {
-      _id: `st-${Date.now()}`,
-      stocktakeNumber: activeStocktakeAudit.stocktakeNumber,
-      locationName: activeStocktakeAudit.location,
-      status: "COMPLETED",
-      itemsCounted: activeStocktakeAudit.items.length,
-      varianceItems: varianceCount,
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-    };
+      // 2. Reconcile & Post
+      await apiClient.post(`/retail/stocktake/${activeStocktakeAudit._id}/post`, {
+        notes: "Reconciled and approved audit counts",
+      });
 
-    setStocktakes((prev) => [completedStocktake, ...prev]);
-    setActiveStocktakeAudit(null);
+      toast.success(`Stocktake ${activeStocktakeAudit.stocktakeNumber} reconciled and completed!`);
+      setActiveStocktakeAudit(null);
+      fetchStocktakes();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to complete stocktake";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -199,7 +536,7 @@ export default function RetailStockOpsPage() {
 
         {activeTab === "TRANSFERS" && (
           <Button
-            onClick={() => setIsTransferModalOpen(true)}
+            onClick={handleOpenTransferModal}
             className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -209,13 +546,25 @@ export default function RetailStockOpsPage() {
         {activeTab === "STOCKTAKE" && !activeStocktakeAudit && (
           <Button
             onClick={handleStartStocktake}
+            disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
-            <ClipboardCheck className="h-4 w-4" />
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ClipboardCheck className="h-4 w-4" />
+            )}
             Start New Stocktake
           </Button>
         )}
       </div>
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-sm text-rose-700 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex gap-2 border-b border-slate-200">
@@ -254,411 +603,45 @@ export default function RetailStockOpsPage() {
         </button>
       </div>
 
-      {/* ─── TAB 1: TRANSFERS ────────────────────────────────────── */}
+      {/* TAB 1: TRANSFERS */}
       {activeTab === "TRANSFERS" && (
-        <div className="space-y-4">
-          <Card className="border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow>
-                    <TableHead>Transfer #</TableHead>
-                    <TableHead>Route (From → To)</TableHead>
-                    <TableHead>Items & Quantity</TableHead>
-                    <TableHead>Date Created</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transfers.map((tr) => (
-                    <TableRow key={tr._id} className="hover:bg-slate-50/70">
-                      <TableCell className="font-mono font-semibold text-slate-900">
-                        {tr.transferNumber}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                          <span>{tr.fromLocation}</span>
-                          <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{tr.toLocation}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-slate-700">
-                          {tr.lines.map((l, idx) => (
-                            <span key={idx} className="block text-xs">
-                              {l.quantity}x {l.productName}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-500">
-                        {new Date(tr.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {tr.status === "RECEIVED" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800">Received</Badge>
-                        ) : tr.status === "DISPATCHED" ? (
-                          <Badge className="bg-blue-100 text-blue-800">In Transit</Badge>
-                        ) : (
-                          <Badge variant="secondary">Draft</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {tr.status === "DISPATCHED" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 gap-1"
-                            onClick={() => handleUpdateTransferStatus(tr._id, "RECEIVED")}
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            Acknowledge Receipt
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        </div>
+        <LocationTransfersTab
+          transfers={transfers}
+          isLoading={isLoadingTransfers}
+          onReceiveTransfer={handleReceiveTransfer}
+        />
       )}
 
-      {/* ─── TAB 2: STOCKTAKE ────────────────────────────────────── */}
+      {/* TAB 2: STOCKTAKE */}
       {activeTab === "STOCKTAKE" && (
-        <div className="space-y-4">
-          {activeStocktakeAudit ? (
-            <Card className="border-slate-200 shadow-sm border-t-4 border-t-primary">
-              <CardHeader className="bg-slate-50 border-b border-slate-200 pb-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <FileSpreadsheet className="h-5 w-5 text-primary" />
-                      Live Counting Sheet: {activeStocktakeAudit.stocktakeNumber}
-                    </CardTitle>
-                    <CardDescription>
-                      Auditing location:{" "}
-                      <span className="font-semibold text-slate-700">
-                        {activeStocktakeAudit.location}
-                      </span>
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveStocktakeAudit(null)}
-                    >
-                      Cancel Audit
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                      onClick={handleCommitStocktake}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Reconcile & Complete
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead>Product / SKU</TableHead>
-                      <TableHead className="text-right">System Qty</TableHead>
-                      <TableHead className="text-right w-36">Counted Physical Qty</TableHead>
-                      <TableHead className="text-right">Variance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeStocktakeAudit.items.map((item) => {
-                      const variance = item.countedQty - item.systemQty;
-                      return (
-                        <TableRow key={item.productId} className="hover:bg-slate-50/70">
-                          <TableCell>
-                            <div className="font-medium text-slate-900">{item.name}</div>
-                            <div className="text-xs font-mono text-slate-400">{item.sku}</div>
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-medium text-slate-700">
-                            {item.systemQty}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.countedQty}
-                              onChange={(e) =>
-                                handleCountChange(item.productId, parseInt(e.target.value, 10) || 0)
-                              }
-                              className="h-8 text-right font-bold font-mono"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-bold">
-                            {variance === 0 ? (
-                              <span className="text-emerald-600">0</span>
-                            ) : variance > 0 ? (
-                              <span className="text-blue-600">+{variance}</span>
-                            ) : (
-                              <span className="text-rose-600">{variance}</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead>Stocktake Number</TableHead>
-                      <TableHead>Audited Location</TableHead>
-                      <TableHead className="text-center">Items Counted</TableHead>
-                      <TableHead className="text-center">Variance Count</TableHead>
-                      <TableHead>Completed Date</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stocktakes.map((stk) => (
-                      <TableRow key={stk._id} className="hover:bg-slate-50/70">
-                        <TableCell className="font-mono font-semibold text-slate-900">
-                          {stk.stocktakeNumber}
-                        </TableCell>
-                        <TableCell className="text-slate-800 font-medium">
-                          {stk.locationName}
-                        </TableCell>
-                        <TableCell className="text-center">{stk.itemsCounted} items</TableCell>
-                        <TableCell className="text-center">
-                          {stk.varianceItems > 0 ? (
-                            <Badge className="bg-amber-100 text-amber-800">
-                              {stk.varianceItems} variances
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-emerald-100 text-emerald-800">Zero variance</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-slate-500">
-                          {stk.completedAt ? new Date(stk.completedAt).toLocaleDateString() : "In progress"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {stk.status === "COMPLETED" ? (
-                            <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>
-                          ) : (
-                            <Badge className="bg-blue-100 text-blue-800">In Progress</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </Card>
-          )}
-        </div>
+        <StocktakeTab
+          stocktakes={stocktakes}
+          isLoading={isLoadingStocktakes}
+          activeStocktakeAudit={activeStocktakeAudit}
+          onCancelAudit={() => setActiveStocktakeAudit(null)}
+          onCommitStocktake={handleCommitStocktake}
+          onCountChange={handleCountChange}
+          isSubmitting={isSubmitting}
+        />
       )}
 
-      {/* ─── TAB 3: RESTOCK SUGGESTIONS ──────────────────────────── */}
+      {/* TAB 3: RESTOCK SUGGESTIONS */}
       {activeTab === "SUGGESTIONS" && (
-        <div className="space-y-4">
-          <Card className="p-4 bg-amber-50/60 border-amber-200 shadow-sm flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm">
-              <p className="font-semibold text-amber-900">Automated Replenishment Engine</p>
-              <p className="text-amber-800 text-xs mt-0.5">
-                The following products have breached minimum thresholds (reorder point) and require procurement to maintain optimal shelf availability.
-              </p>
-            </div>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Preferred Supplier</TableHead>
-                    <TableHead className="text-right">On Hand</TableHead>
-                    <TableHead className="text-right">Reorder Point</TableHead>
-                    <TableHead className="text-right">Par Level</TableHead>
-                    <TableHead className="text-right">Suggested Order Qty</TableHead>
-                    <TableHead className="text-right">Est. Cost</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {restockSuggestions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
-                        All products are currently stocked at optimal levels. No replenishment needed!
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    restockSuggestions.map((item) => (
-                      <TableRow key={item._id} className="hover:bg-slate-50/70">
-                        <TableCell>
-                          <div className="font-semibold text-slate-900">{item.productName}</div>
-                          <div className="text-xs font-mono text-slate-400">{item.sku}</div>
-                        </TableCell>
-                        <TableCell className="text-slate-700 text-sm">
-                          {item.supplierName || "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-rose-600">
-                          {item.onHand}
-                        </TableCell>
-                        <TableCell className="text-right text-slate-600">{item.reorderPoint}</TableCell>
-                        <TableCell className="text-right text-slate-600">{item.parLevel}</TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600 font-mono">
-                          +{item.suggestedQty}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-slate-900">
-                          {formatMinor(item.estimatedCostMinor)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs bg-primary hover:bg-primary/90 text-white gap-1"
-                            onClick={() => alert(`PO drafted for ${item.suggestedQty}x ${item.productName}`)}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Draft PO
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        </div>
+        <RestockSuggestionsTab
+          suggestions={restockSuggestions}
+          isLoading={isLoadingSuggestions}
+        />
       )}
 
       {/* Create Transfer Modal */}
-      <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900">
-              Create Stock Transfer
-            </DialogTitle>
-            <DialogDescription>
-              Transfer inventory items between your registered storage locations.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateTransfer} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-700">Source (From) *</Label>
-                <Select value={transferFrom} onValueChange={(val) => val && setTransferFrom(val)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Warehouse">Central Warehouse</SelectItem>
-                    <SelectItem value="Main Store">Main Store</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-700">Destination (To) *</Label>
-                <Select value={transferTo} onValueChange={(val) => val && setTransferTo(val)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Main Store">Main Store</SelectItem>
-                    <SelectItem value="Warehouse">Central Warehouse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <Label className="text-xs font-medium text-slate-700">Items to Transfer</Label>
-              {transferLines.map((line, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-8">
-                    <Select
-                      value={line.productId}
-                      onValueChange={(val) => {
-                        const prod = mockProducts.find((p) => p._id === val);
-                        if (!prod) return;
-                        setTransferLines((prev) =>
-                          prev.map((l, i) =>
-                            i === idx
-                              ? {
-                                  ...l,
-                                  productId: prod._id,
-                                  productName: prod.name,
-                                  sku: prod.sku,
-                                }
-                              : l
-                          )
-                        );
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockProducts.map((p) => (
-                          <SelectItem key={p._id} value={p._id} className="text-xs">
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-4">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={line.quantity}
-                      onChange={(e) => {
-                        const qty = parseInt(e.target.value, 10) || 1;
-                        setTransferLines((prev) =>
-                          prev.map((l, i) => (i === idx ? { ...l, quantity: qty } : l))
-                        );
-                      }}
-                      className="h-8 text-xs"
-                      placeholder="Qty"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Transfer Notes</Label>
-              <Input
-                value={transferNotes}
-                onChange={(e) => setTransferNotes(e.target.value)}
-                placeholder="e.g. Stock replenishment for weekend rush"
-              />
-            </div>
-
-            <DialogFooter className="pt-3 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={() => setIsTransferModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-white gap-1.5">
-                <Send className="h-4 w-4" />
-                Dispatch Transfer
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CreateTransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        locations={locations}
+        availableProducts={availableProducts}
+        onSubmit={handleCreateTransferSubmit}
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
 }
